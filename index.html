@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Kombat — LLM Fighting Game</title>
+    <meta name="description" content="A Mortal Kombat-style browser fighting game where AI language models battle. Pick your model, charge up, activate MoE mode, and fight through the ladder to dethrone the champion.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════ TITLE SCREEN ═══════════════════════════════ -->
+<div id="screen-title" class="screen active">
+    <div class="title-bg-canvas-wrapper">
+        <canvas id="title-canvas"></canvas>
+    </div>
+    <div class="title-content">
+        <div class="title-logo">
+            <div class="title-pre">// UnitBuilds CC presents</div>
+            <h1 class="glitch-text" data-text="MODEL KOMBAT">MODEL KOMBAT</h1>
+            <div class="title-sub">MIXTURE OF EXPERTS EDITION</div>
+        </div>
+        <div class="title-prompt blink">[ PRESS ENTER OR TAP TO CONTINUE ]</div>
+        <div class="title-footer">
+            <span>SYS_08</span>
+            <span>20 FIGHTERS</span>
+            <span>5 RENDER TIERS</span>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════ SELECT SCREEN ═══════════════════════════════ -->
+<div id="screen-select" class="screen">
+    <div class="screen-header">
+        <button class="btn-back-nav" id="btn-select-back">← BACK</button>
+        <h2 class="screen-title">SELECT YOUR MODEL</h2>
+        <div class="select-tip">Higher ranked models are unlocked after defeating them</div>
+    </div>
+    <div class="fighter-grid" id="fighter-grid"></div>
+    <div class="fighter-preview" id="fighter-preview">
+        <canvas id="preview-canvas" width="120" height="160"></canvas>
+        <div class="preview-info" id="preview-info">
+            <div class="preview-name" id="preview-name">—</div>
+            <div class="preview-vendor" id="preview-vendor">Select a fighter</div>
+            <div class="preview-stats" id="preview-stats"></div>
+            <div class="preview-moe" id="preview-moe"></div>
+        </div>
+        <button class="btn-fight" id="btn-select-fight" disabled>SELECT FIGHTER</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════ LADDER SCREEN ═══════════════════════════════ -->
+<div id="screen-ladder" class="screen">
+    <div class="screen-header">
+        <button class="btn-back-nav" id="btn-ladder-back">← SELECT</button>
+        <h2 class="screen-title">THE LADDER</h2>
+        <div class="select-tip" id="ladder-player-label">—</div>
+    </div>
+    <div class="ladder-container">
+        <div class="ladder-track" id="ladder-track"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════ FIGHT SCREEN ═══════════════════════════════ -->
+<div id="screen-fight" class="screen">
+    <!-- HUD TOP -->
+    <div class="fight-hud">
+        <div class="hud-player hud-left">
+            <div class="fighter-name-display" id="hud-p1-name">PLAYER</div>
+            <div class="hp-bar-wrapper">
+                <div class="hp-bar" id="hp-bar-p1"></div>
+            </div>
+            <div class="ki-bar-wrapper">
+                <div class="ki-bar" id="ki-bar-p1"></div>
+                <div class="moe-indicator" id="moe-ind-p1">MoE</div>
+            </div>
+        </div>
+        <div class="hud-center">
+            <div class="round-display" id="round-display">RND 1</div>
+            <div class="timer-display" id="timer-display">99</div>
+            <div class="wins-pips">
+                <div class="win-pip" id="p1-win-1"></div>
+                <div class="win-pip" id="p1-win-2"></div>
+            </div>
+            <div class="vs-text">VS</div>
+            <div class="wins-pips">
+                <div class="win-pip" id="p2-win-1"></div>
+                <div class="win-pip" id="p2-win-2"></div>
+            </div>
+        </div>
+        <div class="hud-player hud-right">
+            <div class="fighter-name-display" id="hud-p2-name">OPPONENT</div>
+            <div class="hp-bar-wrapper reversed">
+                <div class="hp-bar enemy" id="hp-bar-p2"></div>
+            </div>
+            <div class="ki-bar-wrapper">
+                <div class="ki-bar enemy" id="ki-bar-p2"></div>
+                <div class="moe-indicator enemy" id="moe-ind-p2">MoE</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIGHT CANVAS -->
+    <div class="fight-canvas-wrapper">
+        <canvas id="fight-canvas"></canvas>
+        <div class="combo-display" id="combo-display"></div>
+        <div class="ko-overlay" id="ko-overlay">
+            <div class="ko-text" id="ko-text">K.O.</div>
+        </div>
+        <div class="moe-flash-overlay" id="moe-flash"></div>
+        <div class="fight-announcement" id="fight-announcement">FIGHT!</div>
+    </div>
+
+    <!-- MOBILE CONTROLS -->
+    <div class="fight-controls">
+        <div class="controls-left">
+            <div class="dpad">
+                <button class="dpad-btn dpad-left" id="btn-left" aria-label="Move Left">◀</button>
+                <button class="dpad-btn dpad-right" id="btn-right" aria-label="Move Right">▶</button>
+            </div>
+        </div>
+        <div class="controls-center">
+            <button class="action-btn btn-charge" id="btn-charge" aria-label="Charge Ki">⚡ CHARGE</button>
+        </div>
+        <div class="controls-right">
+            <button class="action-btn btn-punch" id="btn-punch" aria-label="Punch">P</button>
+            <button class="action-btn btn-kick" id="btn-kick" aria-label="Kick">K</button>
+            <button class="action-btn btn-block" id="btn-block" aria-label="Block">🛡</button>
+            <button class="action-btn btn-special" id="btn-special" aria-label="Special Move">★</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════ RESULT MODAL ═══════════════════════════════ -->
+<div id="result-modal" class="modal hidden">
+    <div class="modal-inner">
+        <div class="modal-title" id="result-title">VICTORY</div>
+        <div class="modal-sub" id="result-sub">—</div>
+        <canvas id="result-canvas" width="200" height="180"></canvas>
+        <div class="modal-actions">
+            <button class="btn-modal-primary" id="btn-result-continue">CONTINUE →</button>
+            <button class="btn-modal-secondary" id="btn-result-menu">MAIN MENU</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════ CHAMPION SCREEN ═══════════════════════════════ -->
+<div id="screen-champion" class="screen">
+    <div class="champion-content">
+        <div class="champion-title">🏆 LADDER COMPLETE</div>
+        <canvas id="champion-canvas" width="200" height="240"></canvas>
+        <div class="champion-text" id="champion-text">You have defeated all models.<br>You are the PARAM CHAMPION.</div>
+        <button class="btn-fight" id="btn-champion-restart">PLAY AGAIN</button>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script src="engine.js"></script>
+</body>
+</html>
