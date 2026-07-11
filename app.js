@@ -13,27 +13,28 @@ const VENDORS = {
 };
 
 const FIGHTERS_DB = {
-    'gemma-2b': { id: 'gemma-2b', name: 'Gemma 2B', vendor: 'Google', color: VENDORS.GOOGLE, tier: 1, hasMoE: true, moeName: 'Gemma E2B', moeThreshold: 80, hp: 100, dmg: 5, spd: 5, def: 5 },
-    'gpt-3.5': { id: 'gpt-3.5', name: 'GPT-3.5', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 1, hasMoE: false, hp: 110, dmg: 6, spd: 5, def: 6 },
-    'llama-3-3b': { id: 'llama-3-3b', name: 'Llama 3.2 3B', vendor: 'Meta', color: VENDORS.META, tier: 1, hasMoE: false, hp: 100, dmg: 7, spd: 7, def: 4 },
-    'mistral-7b': { id: 'mistral-7b', name: 'Mistral 7B', vendor: 'Mistral', color: VENDORS.MISTRAL, tier: 2, hasMoE: false, hp: 120, dmg: 7, spd: 6, def: 5 },
-    'gemma-4b': { id: 'gemma-4b', name: 'Gemma 4B', vendor: 'Google', color: VENDORS.GOOGLE, tier: 2, hasMoE: true, moeName: 'Gemma E4B', moeThreshold: 75, hp: 110, dmg: 7, spd: 6, def: 6 },
-    'claude-haiku': { id: 'claude-haiku', name: 'Claude Haiku', vendor: 'Anthropic', color: VENDORS.ANTHROPIC, tier: 2, hasMoE: true, moeName: 'Haiku Thinking', moeThreshold: 70, hp: 130, dmg: 6, spd: 8, def: 7 },
-    'llama-3-8b': { id: 'llama-3-8b', name: 'Llama 3.1 8B', vendor: 'Meta', color: VENDORS.META, tier: 2, hasMoE: false, hp: 130, dmg: 8, spd: 7, def: 5 },
-    'gpt-4o-mini': { id: 'gpt-4o-mini', name: 'GPT-4o mini', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 3, hasMoE: true, moeName: '4o mini MoE', moeThreshold: 65, hp: 150, dmg: 8, spd: 8, def: 7 },
-    'gemini-flash': { id: 'gemini-flash', name: 'Gemini Flash', vendor: 'Google', color: VENDORS.GOOGLE, tier: 3, hasMoE: true, moeName: 'Flash Thinking', moeThreshold: 60, hp: 140, dmg: 9, spd: 9, def: 6 },
-    'mixtral-8x7b': { id: 'mixtral-8x7b', name: 'Mixtral 8x7B ⚡', vendor: 'Mistral', color: VENDORS.MISTRAL, tier: 3, hasMoE: true, isNativeMoE: true, moeName: 'Mixtral (Active)', moeThreshold: 30, hp: 160, dmg: 8, spd: 7, def: 6 },
-    'llama-4-scout': { id: 'llama-4-scout', name: 'Llama 4 Scout ⚡', vendor: 'Meta', color: VENDORS.META, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'Scout (Active)', moeThreshold: 25, hp: 170, dmg: 9, spd: 8, def: 6 },
-    'deepseek-v2': { id: 'deepseek-v2', name: 'DeepSeek V2 ⚡', vendor: 'DeepSeek', color: VENDORS.DEEPSEEK, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'V2 (Active)', moeThreshold: 35, hp: 180, dmg: 10, spd: 6, def: 7 },
-    'claude-sonnet': { id: 'claude-sonnet', name: 'Claude Sonnet', vendor: 'Anthropic', color: VENDORS.ANTHROPIC, tier: 4, hasMoE: true, moeName: 'Sonnet Thinking', moeThreshold: 65, hp: 200, dmg: 9, spd: 8, def: 10 },
-    'gemini-2-5-pro': { id: 'gemini-2-5-pro', name: 'Gemini 2.5 Pro', vendor: 'Google', color: VENDORS.GOOGLE, tier: 4, hasMoE: true, moeName: '2.5 Pro MoE', moeThreshold: 60, hp: 220, dmg: 11, spd: 8, def: 8 },
-    'gpt-4o': { id: 'gpt-4o', name: 'GPT-4o', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 4, hasMoE: true, moeName: 'GPT-4o MoE', moeThreshold: 70, hp: 230, dmg: 10, spd: 9, def: 9 },
-    'llama-4-maverick': { id: 'llama-4-maverick', name: 'Llama 4 Maverick ⚡', vendor: 'Meta', color: VENDORS.META, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'Maverick (Active)', moeThreshold: 20, hp: 240, dmg: 12, spd: 10, def: 7 },
-    'deepseek-v3': { id: 'deepseek-v3', name: 'DeepSeek V3 ⚡', vendor: 'DeepSeek', color: VENDORS.DEEPSEEK, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'V3 (Active)', moeThreshold: 25, hp: 250, dmg: 13, spd: 8, def: 9 },
-    'claude-opus': { id: 'claude-opus', name: 'Claude Opus', vendor: 'Anthropic', color: VENDORS.ANTHROPIC, tier: 5, hasMoE: true, moeName: 'Opus Thinking', moeThreshold: 75, hp: 300, dmg: 12, spd: 7, def: 12 },
-    'gemini-ultra': { id: 'gemini-ultra', name: 'Gemini Ultra', vendor: 'Google', color: VENDORS.GOOGLE, tier: 5, hasMoE: true, moeName: 'Ultra MoE', moeThreshold: 80, hp: 320, dmg: 14, spd: 8, def: 10 },
-    'o3': { id: 'o3', name: 'o3', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 5, hasMoE: true, moeName: 'Reasoning Storm', moeThreshold: 85, hp: 350, dmg: 15, spd: 10, def: 11 }
+    'gemma-2b': { id: 'gemma-2b', name: 'Gemma 2B', vendor: 'Google', color: VENDORS.GOOGLE, tier: 1, hasMoE: true, moeName: 'Gemma E2B', moeThreshold: 80, hp: 100, dmg: 5, spd: 5, def: 5, desc: 'A lightweight Google model utilizing Context Window buffs and Modality Shift stances.' },
+    'gpt-3.5': { id: 'gpt-3.5', name: 'GPT-3.5', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 1, hasMoE: false, hp: 110, dmg: 6, spd: 5, def: 6, desc: 'OpenAI legacy brawler. Gathers RLHF Reward stacks and safety alignment buffers.' },
+    'llama-3-3b': { id: 'llama-3-3b', name: 'Llama 3.2 3B', vendor: 'Meta', color: VENDORS.META, tier: 1, hasMoE: false, hp: 100, dmg: 7, spd: 7, def: 4, desc: 'Meta edge weight model. Accumulates Open-Weights Adaptation stacks to mitigate damage.' },
+    'mistral-7b': { id: 'mistral-7b', name: 'Mistral 7B', vendor: 'Mistral', color: VENDORS.MISTRAL, tier: 2, hasMoE: false, hp: 120, dmg: 7, spd: 6, def: 5, desc: 'Agile open-weight prodigy with Sliding Window Attention block shields and GQA charging speed.' },
+    'gemma-4b': { id: 'gemma-4b', name: 'Gemma 4B', vendor: 'Google', color: VENDORS.GOOGLE, tier: 2, hasMoE: true, moeName: 'Gemma E4B', moeThreshold: 75, hp: 110, dmg: 7, spd: 6, def: 6, desc: 'Google on-device model. Cycles text, vision, and audio modalities to surprise enemies.' },
+    'claude-haiku': { id: 'claude-haiku', name: 'Claude Haiku', vendor: 'Anthropic', color: VENDORS.ANTHROPIC, tier: 2, hasMoE: true, moeName: 'Haiku Thinking', moeThreshold: 70, hp: 130, dmg: 6, spd: 8, def: 7, desc: 'Anthropic lightweight model. Employs Constitutional Guard perfect blocks and grab dampeners.' },
+    'llama-3-8b': { id: 'llama-3-8b', name: 'Llama 3.1 8B', vendor: 'Meta', color: VENDORS.META, tier: 2, hasMoE: false, hp: 130, dmg: 8, spd: 7, def: 5, desc: 'Robust Meta brawler. Fine-tunes resistance to enemy punches/kicks in real-time.' },
+    'gpt-4o-mini': { id: 'gpt-4o-mini', name: 'GPT-4o mini', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 3, hasMoE: true, moeName: '4o mini MoE', moeThreshold: 65, hp: 150, dmg: 8, spd: 8, def: 7, desc: 'Cost-effective OpenAI model utilizing Chain-of-Thought (CoT) reasoning steps and auto-dodge.' },
+    'gemini-flash': { id: 'gemini-flash', name: 'Gemini Flash', vendor: 'Google', color: VENDORS.GOOGLE, tier: 3, hasMoE: true, moeName: 'Flash Thinking', moeThreshold: 60, hp: 140, dmg: 9, spd: 9, def: 6, desc: 'Lightning-fast Google model. Context tokens boost damage; Audio Modality compresses recovery frames.' },
+    'mixtral-8x7b': { id: 'mixtral-8x7b', name: 'Mixtral 8x7B ⚡', vendor: 'Mistral', color: VENDORS.MISTRAL, tier: 3, hasMoE: true, isNativeMoE: true, moeName: 'Mixtral (Active)', moeThreshold: 30, hp: 160, dmg: 8, spd: 7, def: 6, desc: 'Native Mixture of Experts. Dynamically routes code, math, and vision experts to switch buffs.' },
+    'llama-4-scout': { id: 'llama-4-scout', name: 'Llama 4 Scout ⚡', vendor: 'Meta', color: VENDORS.META, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'Scout (Active)', moeThreshold: 25, hp: 170, dmg: 9, spd: 8, def: 6, desc: 'Pretrained scout model. Scales from 8B up to 70B and 405B to gain size and Super Armor.' },
+    'deepseek-v2': { id: 'deepseek-v2', name: 'DeepSeek V2 ⚡', vendor: 'DeepSeek', color: VENDORS.DEEPSEEK, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'V2 (Active)', moeThreshold: 35, hp: 180, dmg: 10, spd: 6, def: 7, desc: 'Super-efficient MLA compression. Alternates Combust, Contain, and Shared expert nodes.' },
+    'claude-sonnet': { id: 'claude-sonnet', name: 'Claude Sonnet', vendor: 'Anthropic', color: VENDORS.ANTHROPIC, tier: 4, hasMoE: true, moeName: 'Sonnet Thinking', moeThreshold: 65, hp: 200, dmg: 9, spd: 8, def: 10, desc: 'Highly aligned Anthropic model. Caps single-hit damage to 15% HP and unleashes Prompt blades.' },
+    'gemini-2-5-pro': { id: 'gemini-2-5-pro', name: 'Gemini 2.5 Pro', vendor: 'Google', color: VENDORS.GOOGLE, tier: 4, hasMoE: true, moeName: '2.5 Pro MoE', moeThreshold: 60, hp: 220, dmg: 11, spd: 8, def: 8, desc: 'Frontier Google model. Vision modality unlocks massive melee hitboxes and thick laser beams.' },
+    'gpt-4o': { id: 'gpt-4o', name: 'GPT-4o', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 4, hasMoE: true, moeName: 'GPT-4o MoE', moeThreshold: 70, hp: 230, dmg: 10, spd: 9, def: 9, desc: 'Omni-modal OpenAI titan. Performs Perfect Guards on close blocks and teleports away using CoT.' },
+    'llama-4-maverick': { id: 'llama-4-maverick', name: 'Llama 4 Maverick ⚡', vendor: 'Meta', color: VENDORS.META, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'Maverick (Active)', moeThreshold: 20, hp: 240, dmg: 12, spd: 10, def: 7, desc: 'Brutal open weight giant. Spits Hallucination poison and launches Llama stampedes.' },
+    'deepseek-v3': { id: 'deepseek-v3', name: 'DeepSeek V3 ⚡', vendor: 'DeepSeek', color: VENDORS.DEEPSEEK, tier: 4, hasMoE: true, isNativeMoE: true, moeName: 'V3 (Active)', moeThreshold: 25, hp: 250, dmg: 13, spd: 8, def: 9, desc: 'Apex DeepSeek model. Triggers Multi-Token Prediction double hits and half-decay MoE timers.' },
+    'claude-opus': { id: 'claude-opus', name: 'Claude Opus', vendor: 'Anthropic', color: VENDORS.ANTHROPIC, tier: 5, hasMoE: true, moeName: 'Opus Thinking', moeThreshold: 75, hp: 300, dmg: 12, spd: 7, def: 12, desc: 'Anthropic apex fighter. Constitutional shielding ignores chip damage and censors heavy hits.' },
+    'gemini-ultra': { id: 'gemini-ultra', name: 'Gemini Ultra', vendor: 'Google', color: VENDORS.GOOGLE, tier: 5, hasMoE: true, moeName: 'Ultra MoE', moeThreshold: 80, hp: 320, dmg: 14, spd: 8, def: 10, desc: 'Largest Google model. Builds 1M Context tokens and splits audio lasers into sinewaves.' },
+    'o3': { id: 'o3', name: 'o3', vendor: 'OpenAI', color: VENDORS.OPENAI, tier: 5, hasMoE: true, moeName: 'Reasoning Storm', moeThreshold: 85, hp: 350, dmg: 15, spd: 10, def: 11, desc: 'OpenAI reasoning specialist. Charges CoT to launch unblockable bounding boxes and binary spread shots.' }
 };
+
 
 const LADDER = [
     'gemma-2b', 'gpt-3.5', 'llama-3-3b', 'mistral-7b', 'gemma-4b',
@@ -67,12 +68,76 @@ const Audio = {
         osc.start();
         osc.stop(gameState.audioContext.currentTime + duration);
     },
-    hit() { this.playTone(150, 'square', 0.1, 0.2); this.playTone(100, 'sawtooth', 0.2, 0.2); },
-    block() { this.playTone(400, 'sine', 0.1, 0.1); },
-    charge() { this.playTone(800, 'sine', 0.5, 0.05); },
-    moe() { this.playTone(400, 'square', 0.1, 0.2); setTimeout(()=>this.playTone(600, 'square', 0.3, 0.2), 100); },
-    super() { this.playTone(200, 'sawtooth', 0.2, 0.3); setTimeout(()=>this.playTone(100, 'sawtooth', 0.5, 0.4), 200); },
-    ko() { this.playTone(100, 'sawtooth', 0.8, 0.3); }
+    createNoiseBuffer() {
+        if (!gameState.audioContext) return null;
+        const bufferSize = gameState.audioContext.sampleRate * 2; // 2 seconds of noise
+        const buffer = gameState.audioContext.createBuffer(1, bufferSize, gameState.audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    },
+    playNoise(duration, vol=0.1, bandpassFreq=1000) {
+        if (!gameState.audioContext) return;
+        const noiseBuffer = this.createNoiseBuffer();
+        if (!noiseBuffer) return;
+        
+        const noiseNode = gameState.audioContext.createBufferSource();
+        noiseNode.buffer = noiseBuffer;
+        
+        const filter = gameState.audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = bandpassFreq;
+        
+        const gain = gameState.audioContext.createGain();
+        gain.gain.setValueAtTime(vol, gameState.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + duration);
+        
+        noiseNode.connect(filter);
+        filter.connect(gain);
+        gain.connect(gameState.audioContext.destination);
+        noiseNode.start();
+        noiseNode.stop(gameState.audioContext.currentTime + duration);
+    },
+    hit() { 
+        // Juicy punch impact thud + crackle
+        this.playTone(180, 'sine', 0.15, 0.25); 
+        this.playNoise(0.12, 0.22, 500); 
+    },
+    heavyHit() {
+        // Devastating thud + crunch explosion
+        this.playTone(120, 'triangle', 0.35, 0.45);
+        this.playNoise(0.28, 0.38, 300);
+    },
+    block() { 
+        // Metallic clink
+        this.playTone(1100, 'square', 0.07, 0.12); 
+        this.playTone(1650, 'sine', 0.05, 0.08); 
+        this.playNoise(0.06, 0.08, 2500); 
+    },
+    charge() { 
+        this.playTone(140 + Math.sin(Date.now() * 0.01) * 30, 'sawtooth', 0.15, 0.05); 
+    },
+    moe() { 
+        this.playTone(400, 'square', 0.1, 0.2); 
+        setTimeout(()=>this.playTone(600, 'square', 0.3, 0.2), 100); 
+    },
+    super() { 
+        this.playTone(200, 'sawtooth', 0.2, 0.3); 
+        setTimeout(()=>this.playTone(100, 'sawtooth', 0.5, 0.4), 200); 
+    },
+    ko() { 
+        this.playTone(90, 'sine', 1.0, 0.5); 
+        this.playNoise(0.8, 0.3, 100); 
+    },
+    fatalityChime() {
+        // Dark resonant minor triad chord pad
+        this.playTone(130, 'triangle', 3.0, 0.22);
+        this.playTone(156, 'triangle', 3.0, 0.18);
+        this.playTone(195, 'triangle', 3.0, 0.18);
+        this.playTone(390, 'sine', 2.5, 0.12);
+    }
 };
 
 // --- DOM ELEMENTS ---
@@ -120,6 +185,13 @@ document.getElementById('btn-champion-restart').addEventListener('click', () => 
     gameState.ladderProgress = 0;
     showScreen('select');
 });
+document.getElementById('btn-ladder-reset').addEventListener('click', () => {
+    if (confirm("Reset your ladder progress back to Rung 1? This cannot be undone.")) {
+        localStorage.setItem('modelKombatLadder', 0);
+        gameState.ladderProgress = 0;
+        showScreen('select');
+    }
+});
 
 // --- SELECT SCREEN LOGIC ---
 let selectedPreviewId = null;
@@ -137,9 +209,11 @@ function renderSelectScreen() {
         if (fighter.isNativeMoE) el.innerHTML += `<div class="native-moe-badge">MoE</div>`;
         
         el.innerHTML += `
-            <canvas class="fighter-card-canvas" id="thumb-${id}" width="52" height="60"></canvas>
-            <div class="fighter-card-name" style="color: ${fighter.color}">${fighter.name}</div>
-            <div class="fighter-card-vendor">${fighter.vendor} - Tier ${fighter.tier}</div>
+            <canvas class="fighter-card-canvas" id="thumb-${id}" width="90" height="108"></canvas>
+            <div class="fighter-card-info">
+                <div class="fighter-card-name" style="color: ${fighter.color}">${fighter.name}</div>
+                <div class="fighter-card-vendor">${fighter.vendor} - Tier ${fighter.tier}</div>
+            </div>
         `;
         
         el.addEventListener('click', () => {
@@ -174,7 +248,8 @@ function updatePreview() {
         <div class="stat-item">SPD <span class="stat-bar"><span class="stat-fill" style="width:${(f.spd/10)*100}%"></span></span></div>
     `;
     
-    document.getElementById('preview-moe').textContent = f.hasMoE ? `MoE Evolution: ${f.moeName} at ${f.moeThreshold}%` : `Super Move: Full Charge`;
+    document.getElementById('preview-moe').textContent = f.hasMoE ? `Evolution: ${f.moeName} (Charge ${f.moeThreshold}%)` : `Super Move: Full Charge`;
+    document.getElementById('preview-desc').textContent = f.desc || '';
     document.getElementById('btn-select-fight').disabled = false;
     
     drawThumbnail(document.getElementById('preview-canvas'), f, true);

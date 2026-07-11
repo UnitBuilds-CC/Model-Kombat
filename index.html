@@ -41,12 +41,23 @@
     </div>
     <div class="fighter-grid" id="fighter-grid"></div>
     <div class="fighter-preview" id="fighter-preview">
-        <canvas id="preview-canvas" width="120" height="160"></canvas>
+        <canvas id="preview-canvas" width="180" height="240"></canvas>
         <div class="preview-info" id="preview-info">
             <div class="preview-name" id="preview-name">—</div>
             <div class="preview-vendor" id="preview-vendor">Select a fighter</div>
             <div class="preview-stats" id="preview-stats"></div>
             <div class="preview-moe" id="preview-moe"></div>
+            <div class="preview-desc" id="preview-desc"></div>
+            <div class="preview-moves">
+                <div><span>WASD</span> Move</div>
+                <div><span>P</span> Punch</div>
+                <div><span>K</span> Kick</div>
+                <div><span>B</span> Block</div>
+                <div><span>C</span> Charge</div>
+                <div><span>E</span> Special</div>
+                <div><span>Q</span> Grab</div>
+                <div><span>R</span> Ranged</div>
+            </div>
         </div>
         <button class="btn-fight" id="btn-select-fight" disabled>SELECT FIGHTER</button>
     </div>
@@ -56,6 +67,7 @@
 <div id="screen-ladder" class="screen">
     <div class="screen-header">
         <button class="btn-back-nav" id="btn-ladder-back">← SELECT</button>
+        <button class="btn-back-nav" id="btn-ladder-reset" style="margin-left: 10px; background: rgba(220, 53, 69, 0.25); border-color: #dc3545; color: #ff6b6b;">RESET PROGRESS</button>
         <h2 class="screen-title">THE LADDER</h2>
         <div class="select-tip" id="ladder-player-label">—</div>
     </div>
@@ -70,6 +82,7 @@
     <div class="fight-hud">
         <div class="hud-player hud-left">
             <div class="fighter-name-display" id="hud-p1-name">PLAYER</div>
+            <div class="hud-sub-label" id="hud-p1-sub"></div>
             <div class="hp-bar-wrapper">
                 <div class="hp-bar" id="hp-bar-p1"></div>
             </div>
@@ -93,6 +106,7 @@
         </div>
         <div class="hud-player hud-right">
             <div class="fighter-name-display" id="hud-p2-name">OPPONENT</div>
+            <div class="hud-sub-label" id="hud-p2-sub"></div>
             <div class="hp-bar-wrapper reversed">
                 <div class="hp-bar enemy" id="hp-bar-p2"></div>
             </div>
@@ -114,6 +128,20 @@
         <div class="fight-announcement" id="fight-announcement">FIGHT!</div>
     </div>
 
+    <!-- KEYBOARD CONTROLS GUIDE -->
+    <div class="keyboard-guide">
+        <span class="guide-key">A</span><span class="guide-key">D</span> Move &nbsp;&bull;&nbsp;
+        <span class="guide-key">W</span> Jump &nbsp;&bull;&nbsp;
+        <span class="guide-key">S</span> Crouch &nbsp;&bull;&nbsp;
+        <span class="guide-key">P</span> Punch &nbsp;&bull;&nbsp;
+        <span class="guide-key">K</span> Kick &nbsp;&bull;&nbsp;
+        <span class="guide-key">B</span> Block &nbsp;&bull;&nbsp;
+        <span class="guide-key">C</span> Charge Ki &nbsp;&bull;&nbsp;
+        <span class="guide-key">Q</span> Grab/Pick Up &nbsp;&bull;&nbsp;
+        <span class="guide-key">R</span> Ranged &nbsp;&bull;&nbsp;
+        <span class="guide-key">F</span> Special/Fatality
+    </div>
+
     <!-- MOBILE CONTROLS -->
     <div class="fight-controls">
         <div class="controls-left">
@@ -123,13 +151,15 @@
             </div>
         </div>
         <div class="controls-center">
-            <button class="action-btn btn-charge" id="btn-charge" aria-label="Charge Ki">⚡ CHARGE</button>
+            <button class="action-btn btn-charge" id="btn-charge" aria-label="Charge Ki">⚡ CHARGE [C]</button>
         </div>
         <div class="controls-right">
+            <button class="action-btn btn-ranged" id="btn-ranged" aria-label="Ranged">R</button>
+            <button class="action-btn btn-grab" id="btn-grab" aria-label="Grab">Q</button>
             <button class="action-btn btn-punch" id="btn-punch" aria-label="Punch">P</button>
             <button class="action-btn btn-kick" id="btn-kick" aria-label="Kick">K</button>
-            <button class="action-btn btn-block" id="btn-block" aria-label="Block">🛡</button>
-            <button class="action-btn btn-special" id="btn-special" aria-label="Special Move">★</button>
+            <button class="action-btn btn-block" id="btn-block" aria-label="Block">🛡 (B)</button>
+            <button class="action-btn btn-special" id="btn-special" aria-label="Special Move">★ (F)</button>
         </div>
     </div>
 </div>
@@ -139,7 +169,7 @@
     <div class="modal-inner">
         <div class="modal-title" id="result-title">VICTORY</div>
         <div class="modal-sub" id="result-sub">—</div>
-        <canvas id="result-canvas" width="200" height="180"></canvas>
+        <canvas id="result-canvas" width="260" height="220"></canvas>
         <div class="modal-actions">
             <button class="btn-modal-primary" id="btn-result-continue">CONTINUE →</button>
             <button class="btn-modal-secondary" id="btn-result-menu">MAIN MENU</button>
