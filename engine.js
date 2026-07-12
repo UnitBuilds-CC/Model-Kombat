@@ -27,69 +27,62 @@ let fightState = {
 };
 
 // --- INPUT HANDLING ---
-let lastLeftPress = 0;
-let lastRightPress = 0;
-const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false, w: false, a: false, s: false, d: false, p: false, k: false, b: false, c: false, e: false, f: false, q: false, r: false, ' ': false };
+const keys = { w: false, a: false, s: false, d: false, ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false };
+
+// Bind actions in AIEngine
+AIEngine.Input.bindAction('left', ['a', 'ArrowLeft']);
+AIEngine.Input.bindAction('right', ['d', 'ArrowRight']);
+AIEngine.Input.bindAction('jump', ['w', 'ArrowUp']);
+AIEngine.Input.bindAction('crouch', ['s', 'ArrowDown']);
+AIEngine.Input.bindAction('punch', ['p']);
+AIEngine.Input.bindAction('kick', ['k']);
+AIEngine.Input.bindAction('block', ['b']);
+AIEngine.Input.bindAction('charge', ['c']);
+AIEngine.Input.bindAction('special', ['e', 'f', ' ']);
+AIEngine.Input.bindAction('grab', ['q']);
+AIEngine.Input.bindAction('ranged', ['r']);
+
+// Hook fatality checks
 document.addEventListener('keydown', e => {
-    if(!fightState.active) {
-        // Allow Fatality trigger even if match timer is stopped (active = false)
+    if (!fightState.active) {
         const key = e.key.toLowerCase();
-        if((key === 'e' || key === 'f' || key === ' ') && fightState.p1 && fightState.p2) {
-            const opp = fightState.p2; // victim is P2
-            if(opp.state === 'dizzy' && Math.abs(fightState.p1.x - opp.x) < 130) {
+        if ((key === 'e' || key === 'f' || key === ' ') && fightState.p1 && fightState.p2) {
+            const opp = fightState.p2;
+            if (opp.state === 'dizzy' && Math.abs(fightState.p1.x - opp.x) < 130) {
                 fightState.p1.executeFatality(opp);
             }
         }
-        return;
     }
-    const key = e.key.toLowerCase();
-    
-    if(key === 'arrowleft' || key === 'a') {
-        const now = Date.now();
-        if(now - lastLeftPress < 250) {
-            fightState.p1.dash(-1);
-        }
-        lastLeftPress = now;
-    }
-    if(key === 'arrowright' || key === 'd') {
-        const now = Date.now();
-        if(now - lastRightPress < 250) {
-            fightState.p1.dash(1);
-        }
-        lastRightPress = now;
-    }
-
-    if(keys.hasOwnProperty(key)) keys[key] = true;
-    if(keys.hasOwnProperty(e.key)) keys[e.key] = true; 
-    
-    if(key === 'p') fightState.p1.action('punch');
-    if(key === 'k') fightState.p1.action('kick');
-    if(key === 'b') fightState.p1.action('block', true);
-    if(key === 'c') fightState.p1.action('charge', true);
-    if(key === 'e' || key === ' ' || key === 'f') fightState.p1.action('special');
-    if(key === 'q') fightState.p1.action('grab');
-    if(key === 'r') fightState.p1.action('ranged');
-});
-document.addEventListener('keyup', e => {
-    if(!fightState.active) return;
-    const key = e.key.toLowerCase();
-    if(keys.hasOwnProperty(key)) keys[key] = false;
-    if(keys.hasOwnProperty(e.key)) keys[e.key] = false;
-    
-    if(key === 'b') fightState.p1.action('block', false);
-    if(key === 'c') fightState.p1.action('charge', false);
 });
 
-// Mobile button bindings
+// Mobile button bindings bridged to AIEngine simulation
 const bindBtn = (id, key, actionType) => {
     const btn = document.getElementById(id);
-    if(!btn) return;
-    btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); keys[key]=true; if(actionType) fightState.p1.action(actionType, true); btn.classList.add('pressed');});
-    btn.addEventListener('touchend', (e)=>{ e.preventDefault(); keys[key]=false; if(actionType && (actionType==='block'||actionType==='charge')) fightState.p1.action(actionType, false); btn.classList.remove('pressed');});
-    btn.addEventListener('mousedown', (e)=>{ keys[key]=true; if(actionType) fightState.p1.action(actionType, true); btn.classList.add('pressed');});
-    btn.addEventListener('mouseup', (e)=>{ keys[key]=false; if(actionType && (actionType==='block'||actionType==='charge')) fightState.p1.action(actionType, false); btn.classList.remove('pressed');});
-    btn.addEventListener('mouseleave', (e)=>{ keys[key]=false; if(actionType && (actionType==='block'||actionType==='charge')) fightState.p1.action(actionType, false); btn.classList.remove('pressed');});
+    if (!btn) return;
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        AIEngine.Input.simulateKey(key, 'keydown');
+        btn.classList.add('pressed');
+    });
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        AIEngine.Input.simulateKey(key, 'keyup');
+        btn.classList.remove('pressed');
+    });
+    btn.addEventListener('mousedown', (e) => {
+        AIEngine.Input.simulateKey(key, 'keydown');
+        btn.classList.add('pressed');
+    });
+    btn.addEventListener('mouseup', (e) => {
+        AIEngine.Input.simulateKey(key, 'keyup');
+        btn.classList.remove('pressed');
+    });
+    btn.addEventListener('mouseleave', (e) => {
+        AIEngine.Input.simulateKey(key, 'keyup');
+        btn.classList.remove('pressed');
+    });
 };
+
 bindBtn('btn-left', 'ArrowLeft');
 bindBtn('btn-right', 'ArrowRight');
 bindBtn('btn-up', 'ArrowUp');
@@ -104,34 +97,14 @@ bindBtn('btn-ranged', 'r', 'ranged');
 // --- MATH & UTILS ---
 // Inverse Kinematics (Law of Cosines)
 function solveIK(sx, sy, tx, ty, l1, l2, flip) {
-    let dx = tx - sx;
-    let dy = ty - sy;
-    let D = Math.sqrt(dx*dx + dy*dy);
-    if (D >= l1 + l2) {
-        // Target too far, extend fully
-        const scale = (l1 + l2 - 0.01) / D;
-        tx = sx + dx * scale;
-        ty = sy + dy * scale;
-        dx = tx - sx; dy = ty - sy;
-        D = Math.sqrt(dx*dx + dy*dy);
-    }
-    const a1 = Math.atan2(dy, dx);
-    const a2 = Math.acos(Math.max(-1, Math.min(1, (l1*l1 + D*D - l2*l2) / (2 * l1 * D))));
-    const angle1 = flip ? a1 - a2 : a1 + a2;
-    const ex = sx + Math.cos(angle1) * l1;
-    const ey = sy + Math.sin(angle1) * l1;
-    return { ex, ey, tx, ty };
+    const res = AIEngine.Rigging.solve2JointIK({ x: sx, y: sy }, { x: tx, y: ty }, l1, l2, flip);
+    return { ex: res.joint.x, ey: res.joint.y, tx: res.target.x, ty: res.target.y };
 }
 
 // 3D Projection
 function project3D(x, y, z, cx, cy) {
-    const fov = 400;
-    const scale = fov / (fov + z + 100); // 100 is base distance
-    return {
-        x: cx + x * scale,
-        y: cy + y * scale,
-        scale: scale
-    };
+    const res = AIEngine.Renderer3D.projectPoint({ x, y, z }, cx * 2, cy * 2, Math.PI / 3, 400);
+    return { x: res.x, y: res.y, scale: res.scale };
 }
 
 // --- OBJECTS ---
@@ -167,7 +140,7 @@ class Projectile {
         this.y += this.vy * dt;
         if(this.type === 'weapon') this.vy += 1200 * dt; // gravity
         
-        if(this.x < -150 || this.x > canvas.width + 150 || this.y > GROUND_Y + 120) this.active = false;
+        if(this.x < -200 || this.x > 1600 || this.y > GROUND_Y + 120) this.active = false;
         
         // Spawn digital particles for coding theme
         if (Math.random() < 0.4) {
@@ -206,7 +179,7 @@ class Projectile {
                     ctx.fillStyle = colors[i];
                     ctx.beginPath();
                     const startX = this.x;
-                    const endX = this.x + dirSign * canvas.width;
+                    const endX = this.x + dirSign * 1400;
                     const step = 15;
                     ctx.moveTo(startX, this.y - 14 + i*7);
                     for (let x = startX; dirSign > 0 ? x <= endX : x >= endX; x += dirSign * step) {
@@ -224,7 +197,7 @@ class Projectile {
             
             for (let i = 0; i < 4; i++) {
                 ctx.fillStyle = colors[i];
-                ctx.fillRect(this.x, this.y - (offsetMult * 2) + i*offsetMult, dirSign * canvas.width, thickness);
+                ctx.fillRect(this.x, this.y - (offsetMult * 2) + i*offsetMult, dirSign * 1400, thickness);
             }
         }
         else if (this.type === 'box' || this.type === 'box_perfect') {
@@ -605,6 +578,10 @@ class Fighter {
         fightState.fatalityActive = true;
         fightState.fatalityTimer = 240; // 4 seconds
         
+        // Clear all active projectiles and dropped weapons to prevent interference
+        fightState.projectiles = [];
+        fightState.weapons = [];
+        
         this.state = 'fatality_active';
         this.stateTimer = 240;
         this.stateTimerMax = 240;
@@ -730,8 +707,8 @@ class Fighter {
                 
                 let moveVariant = type;
                 if(type === 'punch' || type === 'kick') {
-                    const isFwd = (this.dir === 1 && (keys.ArrowRight || keys.d)) || (this.dir === -1 && (keys.ArrowLeft || keys.a));
-                    const isDown = keys.ArrowDown || keys.s;
+                    const isFwd = (this.dir === 1 && AIEngine.Input.isActionActive('right')) || (this.dir === -1 && AIEngine.Input.isActionActive('left'));
+                    const isDown = AIEngine.Input.isActionActive('crouch');
                     if (this.y < GROUND_Y) moveVariant = `jump_${type}`;
                     else if (isDown) moveVariant = `crouch_${type}`;
                     else if (isFwd) moveVariant = `fwd_${type}`;
@@ -962,6 +939,50 @@ class Fighter {
             this.hitFlashTimer -= dt * 60;
         }
 
+        // --- PLAYER BUFFERED COMBOS & ACTIONS ---
+        if (this.isPlayer && fightState.active) {
+            const isBlocking = AIEngine.Input.isActionActive('block');
+            const isCharging = AIEngine.Input.isActionActive('charge');
+            
+            if (isBlocking && (this.state === 'idle' || this.state === 'walk')) {
+                this.action('block', true);
+            } else if (!isBlocking && this.state === 'block') {
+                this.action('block', false);
+            }
+            
+            if (isCharging && (this.state === 'idle' || this.state === 'walk')) {
+                this.action('charge', true);
+            } else if (!isCharging && this.state === 'charge') {
+                this.action('charge', false);
+            }
+            
+            const forwardKey = this.dir === 1 ? 'd' : 'a';
+            const forwardArrow = this.dir === 1 ? 'arrowright' : 'arrowleft';
+            
+            const qcfP = AIEngine.Input.Buffer.matchSequence(['s', forwardKey, 'p'], 350) || 
+                         AIEngine.Input.Buffer.matchSequence(['arrowdown', forwardArrow, 'p'], 350);
+            
+            const qcfK = AIEngine.Input.Buffer.matchSequence(['s', forwardKey, 'k'], 350) || 
+                         AIEngine.Input.Buffer.matchSequence(['arrowdown', forwardArrow, 'k'], 350);
+                         
+            if (qcfP || qcfK) {
+                AIEngine.Input.Buffer.clear();
+                this.action('special');
+            } else {
+                if (AIEngine.Input.Buffer.consume('p')) {
+                    this.action('punch');
+                } else if (AIEngine.Input.Buffer.consume('k')) {
+                    this.action('kick');
+                } else if (AIEngine.Input.Buffer.consume('q')) {
+                    this.action('grab');
+                } else if (AIEngine.Input.Buffer.consume('r')) {
+                    this.action('ranged');
+                } else if (AIEngine.Input.Buffer.consume('e') || AIEngine.Input.Buffer.consume('f') || AIEngine.Input.Buffer.consume(' ')) {
+                    this.action('special');
+                }
+            }
+        }
+
         // Reset tripRotation if we are in an upright or fully flat KO/knockdown state
         if (['idle', 'walk', 'jump', 'land', 'block', 'charge', 'moe_transform', 'attack', 'ko', 'knockdown'].includes(this.state)) {
             this.tripRotation = 0;
@@ -969,7 +990,7 @@ class Fighter {
 
         // Crouch check
         this.isCrouching = (this.state === 'idle' || this.state === 'block') && this.y >= GROUND_Y && 
-                           (this.isPlayer ? (keys.ArrowDown || keys.s) : false);
+                           (this.isPlayer ? AIEngine.Input.isActionActive('crouch') : false);
         if (this.limitBreakTimer > 0) {
             this.limitBreakTimer -= dt;
             if (this.limitBreakTimer <= 0) {
@@ -1456,9 +1477,9 @@ class Fighter {
         }
         else if(this.state === 'idle' || this.state === 'walk' || this.state === 'jump') {
             if(this.isPlayer && fightState.active) {
-                let isLeft = keys.ArrowLeft || keys.a;
-                let isRight = keys.ArrowRight || keys.d;
-                const isJump = (keys.ArrowUp || keys.w) && this.y >= GROUND_Y;
+                let isLeft = AIEngine.Input.isActionActive('left');
+                let isRight = AIEngine.Input.isActionActive('right');
+                const isJump = AIEngine.Input.isActionActive('jump') && this.y >= GROUND_Y;
                 
                 // Hallucination Control Inversion
                 if (this.hallucinationTime > 0) {
@@ -1529,7 +1550,7 @@ class Fighter {
             }
         }
         if(this.x < 30) this.x = 30;
-        if(this.x > canvas.width - 30) this.x = canvas.width - 30;
+        if(this.x > 1370) this.x = 1370;
 
         if(this.isMoE) {
             const decayRate = (this.data && this.data.vendor && this.data.vendor.toLowerCase() === 'deepseek') ? 1.0 : 2.0;
@@ -1647,7 +1668,7 @@ class Fighter {
     }
 
     takeDamage(dmg, type, unblockable = false) {
-        if (this.state === 'ko' || this.state === 'knockdown' || this.state === 'get_up') return;
+        if (this.state === 'ko' || this.state === 'knockdown' || this.state === 'get_up' || this.state === 'fatality_active' || this.state === 'fatality_victim') return;
 
         // --- DIZZY FINISHER INTERCEPT ---
         if (this.state === 'dizzy') {
@@ -2062,7 +2083,7 @@ class Fighter {
         if(this.state === 'jump') bobY = 4;
         if(this.state === 'land') bobY = -12; // Landing squash frame!
         let crouchActive = false;
-        if((this.state === 'idle' || this.state === 'block') && (keys.ArrowDown || keys.s) && this.isPlayer && this.y >= GROUND_Y) {
+        if((this.state === 'idle' || this.state === 'block') && AIEngine.Input.isActionActive('crouch') && this.isPlayer && this.y >= GROUND_Y) {
             bobY = -24;
             crouchActive = true;
         }
@@ -3151,28 +3172,32 @@ class Fighter {
     }
 }
 
-// --- VFX & GAME LOOP ---
 function createParticles(x, y, color, count, floatUp = false, isDigit = false) {
-    for(let i=0; i<count; i++) {
-        fightState.particles.push({
-            x: x, y: y,
-            vx: (Math.random()-0.5) * (floatUp ? 3.5 : 10),
-            vy: floatUp ? -Math.random()*4 - 1.5 : (Math.random()-0.5) * 10,
-            life: 1, color: color, size: Math.random() * 4 + 2,
-            isDigit: isDigit || (floatUp && Math.random() > 0.45)
-        });
-    }
+    AIEngine.Particles.spawnBurst(x, y, {
+        count: count,
+        color: color,
+        speed: floatUp ? [50, 100] : [100, 300],
+        gravity: floatUp ? -120 : 0,
+        lifespan: [0.6, 1.2],
+        size: [2.5, 6],
+        shape: isDigit ? 'text' : 'square',
+        textFn: isDigit ? () => (Math.random() > 0.5 ? '1' : '0') : null
+    });
 }
 function createDirectionalBlood(x, y, color, count, dirX, dirY) {
-    for(let i=0; i<count; i++) {
-        const angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 0.95;
-        const speed = Math.random() * 8.5 + 4.5;
-        fightState.particles.push({
-            x: x, y: y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed - (Math.random() * 2), // slightly float up
-            life: 1.0, color: color, size: Math.random() * 4 + 2.2,
-            isDigit: true
+    const baseAngle = Math.atan2(dirY, dirX);
+    for (let i = 0; i < count; i++) {
+        const angle = baseAngle + (Math.random() - 0.5) * 0.95;
+        const speed = Math.random() * 250 + 150;
+        AIEngine.Particles.spawnBurst(x, y, {
+            count: 1,
+            color: color,
+            speed: speed,
+            gravity: 480,
+            lifespan: [0.8, 1.4],
+            size: [2.5, 6.5],
+            shape: 'text',
+            textFn: () => (Math.random() > 0.5 ? '1' : '0')
         });
     }
 }
@@ -3201,32 +3226,11 @@ function renderVFX(ctx) {
         ctx.restore();
     });
     
-    // Particles (support 0/1 code font style and math symbols)
-    fightState.particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        if(p.isMathSymbol) {
-            ctx.fillStyle = p.color;
-            ctx.font = `bold ${Math.round(p.size * 2.2)}px 'Share Tech Mono', monospace`;
-            ctx.fillText(p.symbol || 'x', p.x, p.y);
-        } else if(p.isDigit) {
-            ctx.fillStyle = p.color;
-            ctx.font = `bold ${Math.round(p.size * 2)}px monospace`;
-            ctx.fillText(Math.random() > 0.5 ? '1' : '0', p.x, p.y);
-        } else {
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, p.size, p.size);
-        }
-    });
-    ctx.globalAlpha = 1;
+    // Render engine particles
+    AIEngine.Particles.draw(ctx);
 }
 
 function updateVFX(dt) {
-    for(let i = fightState.particles.length-1; i>=0; i--) {
-        let p = fightState.particles[i];
-        p.x += p.vx * dt * 30; p.y += p.vy * dt * 30;
-        p.life -= dt * 2;
-        if(p.life <= 0) fightState.particles.splice(i, 1);
-    }
     for(let i = fightState.smears.length-1; i>=0; i--) {
         fightState.smears[i].life -= dt * 4;
         if(fightState.smears[i].life <= 0) fightState.smears.splice(i, 1);
@@ -3235,6 +3239,9 @@ function updateVFX(dt) {
         fightState.sparks[i].life -= dt * 5;
         if(fightState.sparks[i].life <= 0) fightState.sparks.splice(i, 1);
     }
+    
+    // Update engine particles
+    AIEngine.Particles.update(dt);
 }
 
 function spawnWeapon() {
@@ -3251,7 +3258,7 @@ function checkCollisions() {
             if(Math.abs(h.x - victim.x) < (h.w/2 + victim.w/2) && Math.abs(h.y - victim.y) < (h.h/2 + victim.h/2)) {
                 h.active = false;
                 if (h.type === 'grab') {
-                    if (victim.state !== 'hit' && victim.state !== 'ko' && victim.y >= GROUND_Y) {
+                    if (victim.state !== 'hit' && victim.state !== 'ko' && victim.state !== 'dizzy' && victim.state !== 'fatality_victim' && victim.hp > 0 && victim.y >= GROUND_Y) {
                         attacker.state = 'throwing';
                         attacker.stateTimer = 40; 
                         attacker.stateTimerMax = 40;
@@ -3421,7 +3428,10 @@ function checkWinCondition() {
     }
 }
 
-function renderBackground(ctx, w, h) {
+function renderBackground(ctx, w, h, camera) {
+    const camX = camera ? camera.x : 0;
+    const camZoom = camera ? camera.zoom : 1;
+    
     // 1. Deep space background gradient
     const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
     bgGrad.addColorStop(0, '#020208');
@@ -3430,21 +3440,29 @@ function renderBackground(ctx, w, h) {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
     
-    // 2. Distant digital grid mountains/skyline (cyber city)
+    // 2. Distant digital grid skyline - Parallax Scroll!
     ctx.save();
     ctx.strokeStyle = 'rgba(168, 85, 247, 0.15)'; // purple skyline
     ctx.lineWidth = 1;
     const cityY = GROUND_Y - 40;
-    ctx.beginPath();
-    ctx.moveTo(0, cityY);
-    ctx.lineTo(30, cityY); ctx.lineTo(30, cityY - 45); ctx.lineTo(55, cityY - 45); ctx.lineTo(55, cityY);
-    ctx.lineTo(85, cityY); ctx.lineTo(85, cityY - 70); ctx.lineTo(120, cityY - 70); ctx.lineTo(120, cityY);
-    ctx.lineTo(155, cityY); ctx.lineTo(155, cityY - 35); ctx.lineTo(190, cityY - 35); ctx.lineTo(190, cityY);
-    ctx.lineTo(230, cityY); ctx.lineTo(230, cityY - 80); ctx.lineTo(270, cityY - 80); ctx.lineTo(270, cityY);
-    ctx.lineTo(315, cityY); ctx.lineTo(315, cityY - 55); ctx.lineTo(350, cityY - 55); ctx.lineTo(350, cityY);
-    ctx.lineTo(395, cityY); ctx.lineTo(395, cityY - 100); ctx.lineTo(430, cityY - 100); ctx.lineTo(430, cityY);
-    ctx.lineTo(w, cityY);
-    ctx.stroke();
+    const cityWidth = 430; // skyline path loop width
+    const cityOffset = -(camX * 0.28) % cityWidth;
+    
+    ctx.translate(cityOffset, 0);
+    for (let offset = -cityWidth; offset < w + cityWidth * 2; offset += cityWidth) {
+        ctx.save();
+        ctx.translate(offset, 0);
+        ctx.beginPath();
+        ctx.moveTo(0, cityY);
+        ctx.lineTo(30, cityY); ctx.lineTo(30, cityY - 45); ctx.lineTo(55, cityY - 45); ctx.lineTo(55, cityY);
+        ctx.lineTo(85, cityY); ctx.lineTo(85, cityY - 70); ctx.lineTo(120, cityY - 70); ctx.lineTo(120, cityY);
+        ctx.lineTo(155, cityY); ctx.lineTo(155, cityY - 35); ctx.lineTo(190, cityY - 35); ctx.lineTo(190, cityY);
+        ctx.lineTo(230, cityY); ctx.lineTo(230, cityY - 80); ctx.lineTo(270, cityY - 80); ctx.lineTo(270, cityY);
+        ctx.lineTo(315, cityY); ctx.lineTo(315, cityY - 55); ctx.lineTo(350, cityY - 55); ctx.lineTo(350, cityY);
+        ctx.lineTo(395, cityY); ctx.lineTo(395, cityY - 100); ctx.lineTo(430, cityY - 100); ctx.lineTo(430, cityY);
+        ctx.stroke();
+        ctx.restore();
+    }
     ctx.restore();
 
     // 3. Cybernetic horizon glow
@@ -3454,14 +3472,15 @@ function renderBackground(ctx, w, h) {
     ctx.fillStyle = horizGrad;
     ctx.fillRect(0, GROUND_Y - 50, w, 50);
 
-    // 4. Detailed perspective floor
+    // 4. Detailed perspective floor - Parallax horizontal floor lines
     ctx.fillStyle = '#050612';
     ctx.fillRect(0, GROUND_Y, w, h - GROUND_Y);
     
     ctx.strokeStyle = 'rgba(0, 240, 255, 0.16)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    for(let i = -100; i < w + 200; i += 35) {
+    const floorOffsetX = -(camX * camZoom) % 35;
+    for(let i = -150 + floorOffsetX; i < w + 200; i += 35) {
         ctx.moveTo(i, GROUND_Y);
         ctx.lineTo(i - 120, h);
     }
@@ -3489,42 +3508,30 @@ function renderBackground(ctx, w, h) {
     ctx.shadowBlur = 0;
 }
 
-
-
-function gameLoop(time) {
-    if(gameState.screen !== 'fight') return;
-    
-    let dt = (time - fightState.lastTime) / 1000;
-    fightState.lastTime = time;
-    if(dt > 0.1) dt = 0.1;
-    
-    // Decay timers in real-time
-    const realDt = dt;
-    if (fightState.slowMoTimer > 0) {
-        fightState.slowMoTimer -= realDt;
-        dt *= 0.18; // 18% speed slow-motion finisher
+function updateFight(dt) {
+    if (gameState.screen !== 'fight') {
+        AIEngine.Loop.stop();
+        return;
     }
+    
     if (fightState.finishThemTimer > 0) {
-        fightState.finishThemTimer -= realDt * 60;
+        fightState.finishThemTimer -= dt * 60;
     }
     
-    if (fightState.active && fightState.hitStop > 0) {
-        fightState.hitStop -= dt * 60;
-    } else {
-        if (fightState.active) {
-            fightState.timer -= dt;
-        }
+    // Update player and opponent physics
+    fightState.p1.update(dt);
+    fightState.p2.update(dt);
+    
+    if (fightState.active) {
+        fightState.timer -= dt;
+        checkCollisions();
+        checkWinCondition();
         
-        // Always update fighter physics and animations (e.g. falling to ground during KO)
-        fightState.p1.update(dt);
-        fightState.p2.update(dt);
-        
-        if (fightState.active) {
-            checkCollisions();
-            checkWinCondition();
-            
+        const anyoneDizzy = (fightState.p1 && fightState.p1.state === 'dizzy') || (fightState.p2 && fightState.p2.state === 'dizzy');
+        if (!anyoneDizzy && !fightState.fatalityActive) {
+            if (fightState.weaponSpawnTimer === undefined) fightState.weaponSpawnTimer = Math.random() * 500 + 500;
             fightState.weaponSpawnTimer -= dt * 60;
-            if(fightState.weaponSpawnTimer <= 0) {
+            if (fightState.weaponSpawnTimer <= 0) {
                 spawnWeapon();
                 fightState.weaponSpawnTimer = Math.random() * 500 + 500;
             }
@@ -3534,22 +3541,37 @@ function gameLoop(time) {
     updateVFX(dt);
     fightState.projectiles.forEach(p => p.update(dt));
     fightState.weapons.forEach(w => w.update(dt));
-    updateHUD();
     
-    if(fightState.shake > 0) {
-        canvas.style.transform = `translate(${(Math.random()-0.5)*fightState.shake}px, ${(Math.random()-0.5)*fightState.shake}px)`;
-        fightState.shake -= dt * 20;
-    } else {
-        canvas.style.transform = 'none';
+    // Update midpoint tracking camera
+    if (fightState.camera) {
+        fightState.camera.update(fightState.p1, fightState.p2, dt);
+        fightState.camera.y = GROUND_Y * (1 - 1 / fightState.camera.zoom);
     }
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    renderBackground(ctx, canvas.width, canvas.height);
+    // Update UI HealthBars
+    if (fightState.p1HealthBar) fightState.p1HealthBar.update(fightState.p1.hp / fightState.p1.maxHp, dt);
+    if (fightState.p2HealthBar) fightState.p2HealthBar.update(fightState.p2.hp / fightState.p2.maxHp, dt);
     
-    // Draw dramatic dark background blackout during Fatality execution
+    updateHUD();
+}
+
+function renderFight() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 1. Render Screen-space Parallax background
+    renderBackground(ctx, canvas.width, canvas.height, fightState.camera);
+    
+    // Dark blackout overlay during Fatality execution
     if (fightState.fatalityActive) {
         ctx.fillStyle = 'rgba(6, 6, 6, 0.88)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // 2. Render World entities transformed relative to camera projection
+    ctx.save();
+    if (fightState.camera) {
+        ctx.translate(-fightState.camera.x * fightState.camera.zoom + fightState.camera.shakeX, -fightState.camera.y * fightState.camera.zoom + fightState.camera.shakeY);
+        ctx.scale(fightState.camera.zoom, fightState.camera.zoom);
     }
     
     fightState.weapons.forEach(w => w.render(ctx));
@@ -3557,37 +3579,40 @@ function gameLoop(time) {
     fightState.p2.render(ctx);
     fightState.projectiles.forEach(p => p.render(ctx));
     renderVFX(ctx);
+    ctx.restore();
     
-    // --- "FINISH THEM" Pulsing Canvas Overlay ---
+    // 3. Render Screen-space UI
+    if (fightState.p1HealthBar) fightState.p1HealthBar.draw(ctx);
+    if (fightState.p2HealthBar) {
+        fightState.p2HealthBar.x = canvas.width - 320;
+        fightState.p2HealthBar.draw(ctx);
+    }
+    
+    // Announce Dizzy / Finish Them
     const anyoneDizzy = (fightState.p1 && fightState.p1.state === 'dizzy') || (fightState.p2 && fightState.p2.state === 'dizzy');
     if (anyoneDizzy) {
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#ff0000';
         ctx.shadowColor = '#ff0000';
         ctx.shadowBlur = 22;
         ctx.font = 'bold 36px "Share Tech Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
-        const scale = 1.0 + Math.sin(time * 0.012) * 0.07;
+        const scale = 1.0 + Math.sin(performance.now() * 0.012) * 0.07;
         ctx.translate(canvas.width / 2, canvas.height / 2 - 40);
         ctx.scale(scale, scale);
         ctx.fillText('FINISH THEM!', 0, 0);
         ctx.restore();
     }
     
-    // Draw cinematic letterbox bars on top of everything during Fatality execution
+    // Letterbox bars during Fatality
     if (fightState.fatalityActive) {
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, 24);
         ctx.fillRect(0, canvas.height - 24, canvas.width, 24);
         ctx.restore();
     }
-    
-    requestAnimationFrame(gameLoop);
 }
 
 function getFighterSubLabel(f) {
@@ -3631,10 +3656,6 @@ function getFighterSubLabel(f) {
 
 function updateHUD() {
     if(!fightState.p1 || !fightState.p2) return;
-    const p1HpEl = document.getElementById('hp-bar-p1');
-    const p2HpEl = document.getElementById('hp-bar-p2');
-    if(p1HpEl) p1HpEl.style.width = Math.max(0, (fightState.p1.hp / fightState.p1.maxHp) * 100) + '%';
-    if(p2HpEl) p2HpEl.style.width = Math.max(0, (fightState.p2.hp / fightState.p2.maxHp) * 100) + '%';
     
     const p1SubEl = document.getElementById('hud-p1-sub');
     const p2SubEl = document.getElementById('hud-p2-sub');
@@ -3666,8 +3687,6 @@ function updateHUD() {
     // Update Combo Display
     const comboEl = document.getElementById('combo-display');
     if (comboEl) {
-        // fightState.p1.combo counts how many hits P1 is receiving (so P2 is doing a combo of p1.combo on P1)
-        // fightState.p2.combo counts how many hits P2 is receiving (so P1 is doing a combo of p2.combo on P2)
         if (fightState.p2.combo > 1) {
             comboEl.textContent = `${fightState.p2.combo} HIT COMBO!`;
             comboEl.style.opacity = 1;
@@ -3681,9 +3700,8 @@ function updateHUD() {
 }
 
 function initFight() {
-    // Set canvas native resolution from CSS layout size
-    canvas.width  = canvas.offsetWidth  || 500;
-    canvas.height = canvas.offsetHeight || 300;
+    canvas.width  = canvas.offsetWidth  || 800;
+    canvas.height = canvas.offsetHeight || 450;
     GROUND_Y = Math.round(canvas.height * 0.80);
 
     fightState.active = true;
@@ -3696,12 +3714,26 @@ function initFight() {
     fightState.weapons = [];
     fightState.sparks = [];
     fightState.smears = [];
-    fightState.hitStop = 0;
-    fightState.shake = 0;
-    fightState.slowMoTimer = 0;
     fightState.finishThemTimer = 0;
     fightState.fatalityActive = false;
-    fightState.lastTime = performance.now();
+    
+    // Clear recompiled engine particles
+    AIEngine.Particles.clear();
+    
+    // Setup Camera
+    fightState.camera = new AIEngine.Camera2D({
+        minX: 0,
+        maxX: 1400,
+        width: canvas.width,
+        height: canvas.height
+    });
+    
+    // Setup HealthBars (canvas drawn)
+    fightState.p1HealthBar = new AIEngine.UI.HealthBar({ x: 20, y: 15, width: 300, height: 16, isPlayer: true });
+    fightState.p2HealthBar = new AIEngine.UI.HealthBar({ x: canvas.width - 320, y: 15, width: 300, height: 16, isPlayer: false });
+    
+    // Hide DOM health bars
+    document.querySelectorAll('.hp-bar-wrapper').forEach(el => el.style.display = 'none');
     
     const p1Data = FIGHTERS_DB[gameState.playerFighterId];
     const p2Data = FIGHTERS_DB[LADDER[gameState.currentOpponentIdx]];
@@ -3709,10 +3741,10 @@ function initFight() {
     fightState.p1 = new Fighter(p1Data, true);
     fightState.p2 = new Fighter(p2Data, false);
     
-    // Override spawn positions to match actual canvas
-    fightState.p1.x = Math.round(canvas.width * 0.22);
+    // Spawn positions in world space
+    fightState.p1.x = 350;
     fightState.p1.y = GROUND_Y;
-    fightState.p2.x = Math.round(canvas.width * 0.78);
+    fightState.p2.x = 1050;
     fightState.p2.y = GROUND_Y;
     
     document.getElementById('hud-p1-name').textContent = p1Data.name.toUpperCase();
@@ -3725,10 +3757,10 @@ function initFight() {
     ['p2-win-1','p2-win-2'].forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.classList.toggle('filled', i < fightState.p2Wins); });
     
     gameState.screen = 'fight';
-    requestAnimationFrame(gameLoop);
+    
+    // Start AIEngine loop
+    AIEngine.Loop.start(updateFight, renderFight);
 }
-
-
 
 // --- THUMBNAIL RENDERER ---
 function drawThumbnail(canv, f, isLarge = false) {
@@ -3799,6 +3831,8 @@ function showAnnouncement(text) {
 
 // Start
 document.addEventListener('DOMContentLoaded', () => {
+    AIEngine.Input.init();
+    AIEngine.Audio.init();
     showScreen('title');
     initTitleCanvas();
 });

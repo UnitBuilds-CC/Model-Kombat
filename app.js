@@ -54,89 +54,37 @@ let gameState = {
 
 // --- AUDIO SYNTHESIS ---
 const Audio = {
-    init() { if (!gameState.audioContext) gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)(); },
+    init() {
+        // Handled automatically by AIEngine
+    },
     playTone(freq, type, duration, vol=0.1) {
-        if (!gameState.audioContext) return;
-        const osc = gameState.audioContext.createOscillator();
-        const gain = gameState.audioContext.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, gameState.audioContext.currentTime);
-        gain.gain.setValueAtTime(vol, gameState.audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(gameState.audioContext.destination);
-        osc.start();
-        osc.stop(gameState.audioContext.currentTime + duration);
-    },
-    createNoiseBuffer() {
-        if (!gameState.audioContext) return null;
-        const bufferSize = gameState.audioContext.sampleRate * 2; // 2 seconds of noise
-        const buffer = gameState.audioContext.createBuffer(1, bufferSize, gameState.audioContext.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        return buffer;
-    },
-    playNoise(duration, vol=0.1, bandpassFreq=1000) {
-        if (!gameState.audioContext) return;
-        const noiseBuffer = this.createNoiseBuffer();
-        if (!noiseBuffer) return;
-        
-        const noiseNode = gameState.audioContext.createBufferSource();
-        noiseNode.buffer = noiseBuffer;
-        
-        const filter = gameState.audioContext.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = bandpassFreq;
-        
-        const gain = gameState.audioContext.createGain();
-        gain.gain.setValueAtTime(vol, gameState.audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + duration);
-        
-        noiseNode.connect(filter);
-        filter.connect(gain);
-        gain.connect(gameState.audioContext.destination);
-        noiseNode.start();
-        noiseNode.stop(gameState.audioContext.currentTime + duration);
+        AIEngine.Audio.playTone({ freq, type, duration, volume: vol });
     },
     hit() { 
-        // Juicy punch impact thud + crackle
-        this.playTone(180, 'sine', 0.15, 0.25); 
-        this.playNoise(0.12, 0.22, 500); 
+        AIEngine.Audio.playFightSound('punch');
     },
     heavyHit() {
-        // Devastating thud + crunch explosion
-        this.playTone(120, 'triangle', 0.35, 0.45);
-        this.playNoise(0.28, 0.38, 300);
+        AIEngine.Audio.playFightSound('heavy_hit');
     },
     block() { 
-        // Metallic clink
-        this.playTone(1100, 'square', 0.07, 0.12); 
-        this.playTone(1650, 'sine', 0.05, 0.08); 
-        this.playNoise(0.06, 0.08, 2500); 
+        AIEngine.Audio.playFightSound('block');
     },
     charge() { 
-        this.playTone(140 + Math.sin(Date.now() * 0.01) * 30, 'sawtooth', 0.15, 0.05); 
+        AIEngine.Audio.playTone({ freq: 140 + Math.sin(Date.now() * 0.01) * 30, type: 'sawtooth', duration: 0.15, volume: 0.05 });
     },
     moe() { 
-        this.playTone(400, 'square', 0.1, 0.2); 
-        setTimeout(()=>this.playTone(600, 'square', 0.3, 0.2), 100); 
+        AIEngine.Audio.playTone({ freq: 400, type: 'square', duration: 0.1, volume: 0.2 });
+        setTimeout(() => AIEngine.Audio.playTone({ freq: 600, type: 'square', duration: 0.3, volume: 0.2 }), 100); 
     },
     super() { 
-        this.playTone(200, 'sawtooth', 0.2, 0.3); 
-        setTimeout(()=>this.playTone(100, 'sawtooth', 0.5, 0.4), 200); 
+        AIEngine.Audio.playTone({ freq: 200, type: 'sawtooth', duration: 0.2, volume: 0.3 });
+        setTimeout(() => AIEngine.Audio.playTone({ freq: 100, type: 'sawtooth', duration: 0.5, volume: 0.4 }), 200); 
     },
     ko() { 
-        this.playTone(90, 'sine', 1.0, 0.5); 
-        this.playNoise(0.8, 0.3, 100); 
+        AIEngine.Audio.playTone({ freq: 90, type: 'sine', duration: 1.0, volume: 0.5 });
     },
     fatalityChime() {
-        // Dark resonant minor triad chord pad
-        this.playTone(130, 'triangle', 3.0, 0.22);
-        this.playTone(156, 'triangle', 3.0, 0.18);
-        this.playTone(195, 'triangle', 3.0, 0.18);
-        this.playTone(390, 'sine', 2.5, 0.12);
+        AIEngine.Audio.playFightSound('announcer_round');
     }
 };
 

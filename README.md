@@ -10,6 +10,7 @@ In this game, 20 real-world AI models face off in a 2D arena. Every visual eleme
 ## 🕹️ Play Directly Here
 
 🎮 **[Model Kombat Live Web App](https://model-kombat-90043718455.us-central1.run.app)**
+*   **Git Repository:** [https://github.com/UnitBuilds-CC/Model-Kombat](https://github.com/UnitBuilds-CC/Model-Kombat)
 
 ---
 
