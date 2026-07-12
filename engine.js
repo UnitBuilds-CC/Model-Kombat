@@ -1521,21 +1521,23 @@ class Fighter {
             }
         }
         
-        // Physics
-        this.x += this.vx * dt;
-        this.vy += this.gravity * dt;
-        this.y += this.vy * dt;
-        
-        if(this.y > GROUND_Y) {
-            const wasJumping = this.state === 'jump';
-            this.y = GROUND_Y;
-            this.vy = 0;
-            if(wasJumping) {
-                this.state = 'land';
-                this.stateTimer = 6;
-                this.stateTimerMax = 6;
-                this.vx = 0;
-                if(this.isPlayer) Audio.hit(); // soft landing impact sound
+        // Physics (skip if grabbed or fatality victim to avoid coordinate jitter)
+        if (this.state !== 'grabbed' && this.state !== 'fatality_victim') {
+            this.x += this.vx * dt;
+            this.vy += this.gravity * dt;
+            this.y += this.vy * dt;
+            
+            if(this.y > GROUND_Y) {
+                const wasJumping = this.state === 'jump';
+                this.y = GROUND_Y;
+                this.vy = 0;
+                if(wasJumping) {
+                    this.state = 'land';
+                    this.stateTimer = 6;
+                    this.stateTimerMax = 6;
+                    this.vx = 0;
+                    if(this.isPlayer) Audio.hit(); // soft landing impact sound
+                }
             }
         }
         
