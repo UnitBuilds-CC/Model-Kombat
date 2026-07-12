@@ -1543,8 +1543,11 @@ class Fighter {
         
         const opponent = this.isPlayer ? fightState.p2 : fightState.p1;
         
-        // Push-out collision if players overlap
-        if(opponent && this.state !== 'ko' && opponent.state !== 'ko' && this.state !== 'fatality_active' && opponent.state !== 'fatality_active') {
+        // Push-out collision if players overlap (skip during grabs, throws, or fatalities)
+        if(opponent && this.state !== 'ko' && opponent.state !== 'ko' && 
+           this.state !== 'fatality_active' && opponent.state !== 'fatality_active' &&
+           this.state !== 'throwing' && this.state !== 'grabbed' &&
+           opponent.state !== 'throwing' && opponent.state !== 'grabbed') {
             const dist = this.x - opponent.x;
             const minDist = (this.w + opponent.w) * 0.45;
             if(Math.abs(dist) < minDist) {
