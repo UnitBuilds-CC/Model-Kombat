@@ -1561,8 +1561,10 @@ class Fighter {
         // Keep players on the stage bounds
         this.x = Math.max(25, Math.min(1375, this.x));
         
-        // Automatic turn to face opponent
-        if(opponent && this.state !== 'ko' && this.state !== 'knockdown' && this.state !== 'get_up' && this.state !== 'fatality_active' && this.state !== 'fatality_victim') {
+        // Automatic turn to face opponent (skip if knocked down, thrown, grabbed, or in fatality)
+        if(opponent && this.state !== 'ko' && this.state !== 'knockdown' && this.state !== 'get_up' && 
+           this.state !== 'fatality_active' && this.state !== 'fatality_victim' &&
+           this.state !== 'throwing' && this.state !== 'grabbed') {
             if(this.x < opponent.x) this.dir = 1;
             else this.dir = -1;
         }
@@ -1582,9 +1584,9 @@ class Fighter {
             }
         }
 
-        // Torso & head lag (secondary physics motion)
+        // Torso & head lag (secondary physics motion - subtle lean forward when moving forward)
         if (this.chestLag === undefined) this.chestLag = 0;
-        const targetLag = - (this.vx * 0.0016) * this.dir;
+        const targetLag = (this.vx * 0.0006) * this.dir;
         this.chestLag += (targetLag - this.chestLag) * dt * 12;
     }
     
