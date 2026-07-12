@@ -2597,26 +2597,49 @@ class Fighter {
 
             // Unified limb rendering helper
             const drawLimbSegment = (sx, sy, ex, ey, tx, ty, w, dimmed) => {
-                // Upper segment: shoulder/hip to elbow/knee (tapered bicep/thigh)
-                tapLimb(sx, sy, w * 1.35, ex, ey, w * 0.98, dimmed);
-                // Lower segment: elbow/knee to hand/foot (tapered forearm/calf)
-                tapLimb(ex, ey, w * 0.98, tx, ty, w * 0.72, dimmed);
+                ctx.save();
+                if(dimmed) ctx.globalAlpha = 0.48;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 
-                // Draw neon energy flow lines down the center of limbs for Tier 5 cyborgs
+                // 1. Dark backing outline
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+                ctx.lineTo(tx, ty);
+                ctx.strokeStyle = cDark;
+                ctx.lineWidth = w * 2.1;
+                ctx.stroke();
+                
+                // 2. Main body color
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+                ctx.lineTo(tx, ty);
+                ctx.strokeStyle = col;
+                ctx.lineWidth = w * 1.7;
+                ctx.stroke();
+                
+                // 3. Highlight sheen line
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+                ctx.lineTo(tx, ty);
+                ctx.strokeStyle = cLight;
+                ctx.lineWidth = w * 0.7;
+                ctx.stroke();
+                
+                // Neon flow line for Tier 5 cyborgs
                 if (t5) {
-                    ctx.save();
-                    if (dimmed) ctx.globalAlpha = 0.35;
-                    ctx.strokeStyle = cLight;
-                    ctx.lineWidth = 1.8;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
                     ctx.beginPath();
                     ctx.moveTo(sx, sy);
                     ctx.lineTo(ex, ey);
                     ctx.lineTo(tx, ty);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.8;
                     ctx.stroke();
-                    ctx.restore();
                 }
+                ctx.restore();
             };
 
             // Custom Shoe/Foot shape drawer
