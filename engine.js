@@ -450,6 +450,7 @@ class Fighter {
         this.hitbox = null; 
         this.weapon = null; // Holds a Weapon object
         this.aiAttackCooldown = 0;
+        this.aiCrouching = false;
         this.attackConnected = false;
         this.attackCooldown = 0;
         
@@ -708,7 +709,7 @@ class Fighter {
                 let moveVariant = type;
                 if(type === 'punch' || type === 'kick') {
                     const isFwd = (this.dir === 1 && AIEngine.Input.isActionActive('right')) || (this.dir === -1 && AIEngine.Input.isActionActive('left'));
-                    const isDown = AIEngine.Input.isActionActive('crouch');
+                    const isDown = this.isPlayer ? AIEngine.Input.isActionActive('crouch') : this.aiCrouching;
                     if (this.y < GROUND_Y) moveVariant = `jump_${type}`;
                     else if (isDown) moveVariant = `crouch_${type}`;
                     else if (isFwd) moveVariant = `fwd_${type}`;
@@ -990,7 +991,7 @@ class Fighter {
 
         // Crouch check
         this.isCrouching = (this.state === 'idle' || this.state === 'block') && this.y >= GROUND_Y && 
-                           (this.isPlayer ? AIEngine.Input.isActionActive('crouch') : false);
+                           (this.isPlayer ? AIEngine.Input.isActionActive('crouch') : this.aiCrouching);
         if (this.limitBreakTimer > 0) {
             this.limitBreakTimer -= dt;
             if (this.limitBreakTimer <= 0) {
@@ -1302,16 +1303,26 @@ class Fighter {
         }
         else if(this.state === 'knockdown') {
             this.stateTimer -= dt * 60;
-            this.vx += (0 - this.vx) * 8 * dt; // slide to stop
-            if (this.y > GROUND_Y) {
+            if (this.y >= GROUND_Y) {
                 this.y = GROUND_Y;
-                this.vy = 0;
+                if (!this.hasBounced) {
+                    this.hasBounced = true;
+                    this.vy = -180; // Bounce pop up!
+                    this.vx *= 0.55; // Dampen slide
+                    fightState.shake = 15; // Impact shake
+                    createParticles(this.x, this.y - 10, '#ffffff', 18);
+                    Audio.hit(); // Slam impact sound
+                } else {
+                    this.vy = 0;
+                    this.vx += (0 - this.vx) * 12 * dt; // quick slide deceleration
+                }
             }
             if(this.stateTimer <= 0) {
                 this.state = 'get_up';
-                this.stateTimer = 20; // 20 frames to stand up
-                this.stateTimerMax = 20;
+                this.stateTimer = 25;
+                this.stateTimerMax = 25;
                 this.vx = 0;
+                this.hasBounced = false; // Reset flag
             }
         }
         else if(this.state === 'get_up') {
@@ -1344,9 +1355,10 @@ class Fighter {
                     
                     // Throw release: opponent is slammed down behind attacker
                     opponent.x = this.x - this.dir * 60;
-                    opponent.y = GROUND_Y;
+                    opponent.y = GROUND_Y - 5;
                     opponent.vy = -250; // Bounce up
                     opponent.vx = -this.dir * 320; // Float back
+                    opponent.hasBounced = false;
                     
                     // Transition victim directly to knockdown
                     opponent.state = 'knockdown';
@@ -1580,7 +1592,11 @@ class Fighter {
         if (!p1) return;
         
         const dist = Math.abs(this.x - p1.x);
-        const diff = gameState.currentOpponentIdx / 20; // difficulty scaling 0.0 -> 1.0
+        const yDist = Math.abs(this.y - p1.y);
+        const diff = gameState.currentOpponentIdx / 20; // difficulty scaling 0.0 -> 1.0 (Rung 1 to Rung 20)
+
+        // Reset AI crouch by default unless explicitly crouching
+        this.aiCrouching = false;
         
         // --- DIZZY/FINISH THEM AI TRIGGER ---
         if (p1.state === 'dizzy') {
@@ -1590,7 +1606,7 @@ class Fighter {
             } else {
                 this.vx = 0;
                 this.state = 'idle';
-                if (Math.random() < 0.15) {
+                if (Math.random() < 0.18) {
                     this.executeFatality(p1);
                 }
             }
@@ -1599,10 +1615,9 @@ class Fighter {
         
         // Jump attack logic: execute mid-air kick or punch if close to player
         if (this.state === 'jump') {
-            const yDist = Math.abs(this.y - p1.y);
-            if (dist < 120 && yDist < 120 && this.aiAttackCooldown <= 0 && Math.random() < 0.5) {
-                this.action(Math.random() > 0.4 ? 'kick' : 'punch');
-                this.aiAttackCooldown = 30;
+            if (dist < 120 && yDist < 120 && this.aiAttackCooldown <= 0 && Math.random() < 0.6) {
+                this.action(Math.random() > 0.35 ? 'kick' : 'punch');
+                this.aiAttackCooldown = 25;
             }
             return;
         }
@@ -1618,65 +1633,95 @@ class Fighter {
             this.vx = 0;
             return;
         }
+
+        // --- MORTAL KOMBAT CLASSIC ANTI-AIR UPPERCUT COUNTER ---
+        // If the player jumps in and gets close, high-tier AI immediately crouch-uppercuts!
+        const playerIsJumpingIn = p1.state === 'jump' && p1.vy > 0;
+        if (playerIsJumpingIn && dist < 145 && this.y >= GROUND_Y && Math.random() < 0.25 + (diff * 0.65)) {
+            this.aiCrouching = true;
+            this.vx = 0;
+            if (dist < 90 && this.aiAttackCooldown <= 0) {
+                this.action('punch'); // Trigger Uppercut!
+                this.aiAttackCooldown = 35;
+            }
+            return;
+        }
+
+        // --- MORTAL KOMBAT AI ZONING & REACTION LOOPS ---
         
-        // Approach, Spacing or Ranged attack at long range
-        if(dist > 220) {
-            const chargeChance = 0.03 + (1 - this.ki / this.maxKi) * 0.07;
-            if(this.ki < (this.data.hasMoE ? this.data.moeThreshold : 100) && Math.random() < chargeChance) {
-                this.action('charge', true);
-            } else if(Math.random() < 0.02 + (diff * 0.04)) {
+        // Long Range Strategy (> 230 pixels)
+        if(dist > 230) {
+            // Throw fireballs if player is idle or walking, else walk forward or charge
+            if (p1.state === 'idle' && Math.random() < 0.05 + (diff * 0.12) && this.aiAttackCooldown <= 0) {
                 this.action('ranged');
+                this.aiAttackCooldown = 40;
+            } else if(this.ki < (this.data.hasMoE ? this.data.moeThreshold : 100) && Math.random() < 0.08) {
+                this.action('charge', true);
             } else {
-                this.vx = this.dir * this.spd * 48; // Snappy approach speed
+                // Sizing and approach
+                this.vx = this.dir * this.spd * 48;
                 this.state = 'walk';
             }
         } 
-        // Midrange (spacing, jump-in trigger, or pre-emptive block)
-        else if(dist > 75) {
-            // High-tier AI (higher difficulty) occasionally jumps in to initiate attack
-            if (dist > 120 && Math.random() < 0.03 + (diff * 0.04) && this.y >= GROUND_Y && this.aiAttackCooldown <= 0) {
+        // Mid Range Spacing (85 - 230 pixels)
+        else if(dist > 85) {
+            // Baiting/spacing: occasionally walk backwards if player is approaching aggressively
+            const playerIsApproaching = (p1.vx > 0 && this.dir === -1) || (p1.vx < 0 && this.dir === 1);
+            if (playerIsApproaching && Math.random() < 0.05 + (diff * 0.25)) {
+                this.vx = -this.dir * this.spd * 40; // Walk backwards (spacing bait!)
+                this.state = 'walk';
+            } else if (dist > 130 && Math.random() < 0.03 + (diff * 0.08) && this.y >= GROUND_Y && this.aiAttackCooldown <= 0) {
+                // Jump-in kick
                 this.vy = this.jumpPower;
                 this.state = 'jump';
                 this.vx = this.dir * this.spd * 42;
                 this.aiAttackCooldown = 30;
-                return;
+            } else {
+                // Walk forward
+                this.vx = this.dir * this.spd * 48; 
+                this.state = 'walk';
             }
             
-            this.vx = this.dir * this.spd * 48; 
-            this.state = 'walk';
-            
-            // Pre-emptive block if player is attacking
-            if(p1.state === 'attack' && Math.random() < 0.1 + (diff * 0.35)) { 
-                this.action('block', true); 
-                setTimeout(()=>this.action('block', false), 150 + Math.random()*150); 
+            // Pre-emptive block/teleport reaction to player projectile
+            if (p1.state === 'attack' && p1.currentMove === 'ranged' && Math.random() < 0.3 + (diff * 0.55)) {
+                this.action('block', true);
+                setTimeout(() => this.action('block', false), 220 + Math.random()*150);
             }
         } 
-        // Close range (melee fighting)
+        // Melee Range (< 85 pixels)
         else {
             this.vx = 0;
             
-            // High-tier AI reactive block
-            if(p1.state === 'attack' && Math.random() < 0.15 + (diff * 0.50)) { 
+            // Reactive Block: If player attacks, block with high probability (higher diff = perfect blocking)
+            if (p1.state === 'attack' && Math.random() < 0.15 + (diff * 0.60)) { 
                 this.action('block', true); 
-                setTimeout(()=>this.action('block', false), 180 + Math.random()*150); 
+                setTimeout(() => this.action('block', false), 200 + Math.random()*150); 
             } 
-            // Anti-turtle mechanic: grab player if they are blocking
-            else if (p1.state === 'block' && Math.random() < 0.2 + (diff * 0.3) && this.aiAttackCooldown <= 0) { 
+            // Anti-Turtle Grab: Grab player if they hold a block
+            else if (p1.state === 'block' && Math.random() < 0.22 + (diff * 0.38) && this.aiAttackCooldown <= 0) { 
                 this.action('grab');
                 this.aiAttackCooldown = 30 + Math.random() * 30;
             }
-            // Execute random strike (punch, kick, or special)
+            // Strike options: Crouch Sweep (crouch_kick) or standard combo strings
             else if (this.state !== 'block' && this.aiAttackCooldown <= 0) {
-                if(Math.random() < 0.08 + (diff * 0.15)) {
-                    let atk = 'punch';
+                const strikeChance = 0.08 + (diff * 0.18);
+                if (Math.random() < strikeChance) {
                     const roll = Math.random();
-                    if (roll > 0.8 && this.ki >= 100) {
-                        atk = 'special';
-                    } else if (roll > 0.55) {
-                        atk = 'kick';
+                    if (roll < 0.28) {
+                        // Crouch Sweep!
+                        this.aiCrouching = true;
+                        this.action('kick'); // Trigger crouch_kick sweep!
+                        this.aiAttackCooldown = 30;
+                    } else if (roll > 0.82 && this.ki >= 100) {
+                        // Special move
+                        this.action('special');
+                        this.aiAttackCooldown = 40;
+                    } else {
+                        // Punch or Kick combo starter
+                        const atk = roll > 0.55 ? 'kick' : 'punch';
+                        this.action(atk);
+                        this.aiAttackCooldown = 20 + Math.random() * 25;
                     }
-                    this.action(atk);
-                    this.aiAttackCooldown = 25 + Math.random() * 35;
                 } else { 
                     this.state = 'idle'; 
                 }
@@ -1887,6 +1932,9 @@ class Fighter {
                 this.state = nextState;
                 this.stateTimer = duration;
                 this.stateTimerMax = duration;
+                if (nextState === 'knockdown') {
+                    this.hasBounced = false;
+                }
             }
             this.combo++;
             
@@ -2091,7 +2139,11 @@ class Fighter {
         // Upper body lag (secondary motion)
         const lagX = (this.chestLag || 0) * 28;
         let shX = lagX, shY = -90; // Shoulders sway dynamically
-        const hpX = 0, hpY = -55;     // Hips stay stable
+        let hipOffset = 0;
+        if (this.state === 'hit') {
+            hipOffset = -14 * ease;
+        }
+        const hpX = hipOffset, hpY = -55;     // Hips sway on hit/impact
 
         // Base joint positions (Shoulders & Hips)
         let bobY = 0;
@@ -2165,8 +2217,9 @@ class Fighter {
             footBack  = {x: -14, y: bobY};
         }
         else if(this.state === 'hit') {
-            spineTilt = -0.28 * ease;
-            handFront = {x: -15 + lagX, y: -105}; handBack = {x: -28 + lagX, y: -85};
+            spineTilt = -0.38 * ease; // Heavier spine recoil arch back
+            handFront = {x: -18 * ease + lagX, y: -105 - ease * 15}; // arms recoil up/back
+            handBack  = {x: -30 * ease + lagX, y: -85 - ease * 12};
             footFront = {x: 18, y: bobY};
             footBack  = {x: -10, y: bobY};
         }
@@ -2544,34 +2597,26 @@ class Fighter {
 
             // Unified limb rendering helper
             const drawLimbSegment = (sx, sy, ex, ey, tx, ty, w, dimmed) => {
-                ctx.save();
-                if(dimmed) ctx.globalAlpha = 0.48;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+                // Upper segment: shoulder/hip to elbow/knee (tapered bicep/thigh)
+                tapLimb(sx, sy, w * 1.35, ex, ey, w * 0.98, dimmed);
+                // Lower segment: elbow/knee to hand/foot (tapered forearm/calf)
+                tapLimb(ex, ey, w * 0.98, tx, ty, w * 0.72, dimmed);
                 
+                // Draw neon energy flow lines down the center of limbs for Tier 5 cyborgs
                 if (t5) {
-                    // T5: Rounded muscular shaded vectors
-                    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
-                    ctx.strokeStyle = cDark; ctx.lineWidth = w * 2.2; ctx.stroke();
-                    
-                    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
-                    ctx.strokeStyle = col; ctx.lineWidth = w * 1.8; ctx.stroke();
-                    
-                    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
-                    ctx.strokeStyle = cLight; ctx.lineWidth = w * 0.9; ctx.stroke();
-                } else if (t4) {
-                    // T4: Two-tone vector lines
-                    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
-                    ctx.strokeStyle = col; ctx.lineWidth = w * 1.8; ctx.stroke();
-                    
-                    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
-                    ctx.strokeStyle = cLight; ctx.lineWidth = w * 0.8; ctx.stroke();
-                } else {
-                    // T3: Simple flat segments
-                    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty);
-                    ctx.strokeStyle = col; ctx.lineWidth = w * 1.6; ctx.stroke();
+                    ctx.save();
+                    if (dimmed) ctx.globalAlpha = 0.35;
+                    ctx.strokeStyle = cLight;
+                    ctx.lineWidth = 1.8;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(ex, ey);
+                    ctx.lineTo(tx, ty);
+                    ctx.stroke();
+                    ctx.restore();
                 }
-                ctx.restore();
             };
 
             // Custom Shoe/Foot shape drawer
