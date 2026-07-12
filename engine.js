@@ -1489,13 +1489,13 @@ class Fighter {
                 }
                 
                 let targetVx = 0;
-                if(isLeft) targetVx = -this.spd * 52;
-                if(isRight) targetVx = this.spd * 52;
+                if(isLeft) targetVx = -this.spd * 58;
+                if(isRight) targetVx = this.spd * 58;
                 
                 if (this.state === 'jump') {
-                    this.vx += (targetVx - this.vx) * 8 * dt; // Air steering with inertia
+                    this.vx += (targetVx - this.vx) * 16 * dt; // Snappier air steering
                 } else {
-                    this.vx += (targetVx - this.vx) * 22 * dt; 
+                    this.vx += (targetVx - this.vx) * 48 * dt; // Responsive ground walk snappiness
                 }
                 
                 if(isJump) {
@@ -1528,46 +1528,47 @@ class Fighter {
         }
         
         const opponent = this.isPlayer ? fightState.p2 : fightState.p1;
-        if (opponent && this.state !== 'throwing' && this.state !== 'grabbed' && opponent.state !== 'throwing' && opponent.state !== 'grabbed') {
-            this.dir = this.x < opponent.x ? 1 : -1;
-            
-            // Pushbox active if vertical distance is less than 85px (prevents overlaps in air/ground, but allows clean jump-overs)
-            if (Math.abs(this.y - opponent.y) < 85) {
-                const minDistance = 44;
-                const overlap = minDistance - Math.abs(this.x - opponent.x);
-                if (overlap > 0) {
-                    let pushDir = 0;
-                    if (this.x === opponent.x) {
-                        pushDir = this.isPlayer ? -1 : 1;
-                    } else {
-                        pushDir = this.x < opponent.x ? -1 : 1;
-                    }
-                    
-                    // Push both characters apart by half the overlap distance to ensure corner safety
-                    this.x += pushDir * (overlap / 2);
-                    opponent.x -= pushDir * (overlap / 2);
-                }
+        
+        // Push-out collision if players overlap
+        if(opponent && this.state !== 'ko' && opponent.state !== 'ko' && this.state !== 'fatality_active' && opponent.state !== 'fatality_active') {
+            const dist = this.x - opponent.x;
+            const minDist = (this.w + opponent.w) * 0.45;
+            if(Math.abs(dist) < minDist) {
+                const push = (minDist - Math.abs(dist)) * 0.5;
+                const dir = dist === 0 ? (this.isPlayer ? -1 : 1) : Math.sign(dist);
+                this.x += dir * push;
+                opponent.x -= dir * push;
             }
         }
-        if(this.x < 30) this.x = 30;
-        if(this.x > 1370) this.x = 1370;
-
-        if(this.isMoE) {
-            const decayRate = (this.data && this.data.vendor && this.data.vendor.toLowerCase() === 'deepseek') ? 1.0 : 2.0;
-            this.ki -= dt * decayRate;
-            if(this.ki <= 0) {
-                this.ki = 0;
-                this.isMoE = false;
-                this.tier = this.data.tier;
-                if(this.isPlayer) document.getElementById('hud-p1-name').textContent = this.data.name.toUpperCase();
-                else document.getElementById('hud-p2-name').textContent = this.data.name.toUpperCase();
+        
+        // Keep players on the stage bounds
+        this.x = Math.max(25, Math.min(1375, this.x));
+        
+        // Automatic turn to face opponent
+        if(opponent && this.state !== 'ko' && this.state !== 'knockdown' && this.state !== 'get_up' && this.state !== 'fatality_active' && this.state !== 'fatality_victim') {
+            if(this.x < opponent.x) this.dir = 1;
+            else this.dir = -1;
+        }
+        
+        // MoE transformation logic
+        if (this.data.hasMoE && !this.isMoE) {
+            if (this.ki >= this.data.moeThreshold) {
+                this.isMoE = true;
+                this.expertTimer = 0; // immediate route triggers!
+                if (this.isPlayer) {
+                    flashScreen(this.color);
+                    Audio.moe();
+                    showAnnouncement(this.data.moeName);
+                    if(this.isPlayer) document.getElementById('hud-p1-name').textContent = this.data.moeName.toUpperCase();
+                    else document.getElementById('hud-p2-name').textContent = this.data.moeName.toUpperCase();
+                }
             }
         }
 
         // Torso & head lag (secondary physics motion)
         if (this.chestLag === undefined) this.chestLag = 0;
-        const targetLag = (this.vx * 0.003) * this.dir;
-        this.chestLag += (targetLag - this.chestLag) * dt * 10;
+        const targetLag = - (this.vx * 0.0016) * this.dir;
+        this.chestLag += (targetLag - this.chestLag) * dt * 12;
     }
     
     updateAI() {
@@ -1576,90 +1577,106 @@ class Fighter {
             return;
         }
         const p1 = fightState.p1;
+        if (!p1) return;
+        
+        const dist = Math.abs(this.x - p1.x);
+        const diff = gameState.currentOpponentIdx / 20; // difficulty scaling 0.0 -> 1.0
         
         // --- DIZZY/FINISH THEM AI TRIGGER ---
-        if (p1 && p1.state === 'dizzy') {
-            const dist = Math.abs(this.x - p1.x);
+        if (p1.state === 'dizzy') {
             if (dist > 65) {
-                this.vx = this.dir * this.spd * 22;
+                this.vx = this.dir * this.spd * 48;
                 this.state = 'walk';
             } else {
                 this.vx = 0;
                 this.state = 'idle';
-                if (Math.random() < 0.04) {
+                if (Math.random() < 0.15) {
                     this.executeFatality(p1);
                 }
             }
             return;
         }
-        const dist = Math.abs(this.x - p1.x);
-        const diff = gameState.currentOpponentIdx / 20;
-
-        // Jump attack logic: if in air close to player, execute a jump kick
+        
+        // Jump attack logic: execute mid-air kick or punch if close to player
         if (this.state === 'jump') {
             const yDist = Math.abs(this.y - p1.y);
-            if (dist < 110 && yDist < 120 && this.aiAttackCooldown <= 0 && Math.random() < 0.35) {
-                this.action('kick');
-                this.aiAttackCooldown = 45;
+            if (dist < 120 && yDist < 120 && this.aiAttackCooldown <= 0 && Math.random() < 0.5) {
+                this.action(Math.random() > 0.4 ? 'kick' : 'punch');
+                this.aiAttackCooldown = 30;
             }
             return;
         }
-
-        // 1. Decouple charging behavior
+        
+        // Decouple charging behavior
         if(this.state === 'charge') {
             let maxTokensWanted = this.data.id === 'o3' ? 3 : 2;
             let openAiDoneCharging = (this.data.vendor && this.data.vendor.toLowerCase() === 'openai' && (this.cotTokens || 0) >= maxTokensWanted);
             
-            if(dist < 130 || this.ki >= this.maxKi || openAiDoneCharging || Math.random() < 0.015) {
+            if(dist < 140 || this.ki >= this.maxKi || openAiDoneCharging || Math.random() < 0.05) {
                 this.action('charge', false); // Stop charging
             }
             this.vx = 0;
             return;
         }
-
-        // 2. Approach or attack
-        if(dist > 250) {
-            if(Math.random() < 0.01 + (diff*0.03)) {
-                this.action('ranged');
-            } else if(this.ki < (this.data.hasMoE ? this.data.moeThreshold : 100) && Math.random() < 0.02) {
+        
+        // Approach, Spacing or Ranged attack at long range
+        if(dist > 220) {
+            const chargeChance = 0.03 + (1 - this.ki / this.maxKi) * 0.07;
+            if(this.ki < (this.data.hasMoE ? this.data.moeThreshold : 100) && Math.random() < chargeChance) {
                 this.action('charge', true);
+            } else if(Math.random() < 0.02 + (diff * 0.04)) {
+                this.action('ranged');
             } else {
-                this.vx = this.dir * this.spd * 22; 
+                this.vx = this.dir * this.spd * 48; // Snappy approach speed
                 this.state = 'walk';
             }
-        } else if(dist > 65) {
-            // Snappy jump forward decision at midrange
-            if (dist > 120 && dist < 220 && Math.random() < 0.015 && this.y >= GROUND_Y && this.aiAttackCooldown <= 0) {
+        } 
+        // Midrange (spacing, jump-in trigger, or pre-emptive block)
+        else if(dist > 75) {
+            // High-tier AI (higher difficulty) occasionally jumps in to initiate attack
+            if (dist > 120 && Math.random() < 0.03 + (diff * 0.04) && this.y >= GROUND_Y && this.aiAttackCooldown <= 0) {
                 this.vy = this.jumpPower;
                 this.state = 'jump';
-                this.vx = this.dir * this.spd * 20;
-                this.aiAttackCooldown = 40;
+                this.vx = this.dir * this.spd * 42;
+                this.aiAttackCooldown = 30;
                 return;
             }
-            this.vx = this.dir * this.spd * 22; 
+            
+            this.vx = this.dir * this.spd * 48; 
             this.state = 'walk';
-            // Pre-emptive block occasionally if player is attacking
-            if(p1.state === 'attack' && Math.random() < 0.08 + (diff*0.25)) { 
+            
+            // Pre-emptive block if player is attacking
+            if(p1.state === 'attack' && Math.random() < 0.1 + (diff * 0.35)) { 
                 this.action('block', true); 
-                setTimeout(()=>this.action('block', false), 200 + Math.random()*200); 
+                setTimeout(()=>this.action('block', false), 150 + Math.random()*150); 
             }
-        } else {
-            // Melee range
+        } 
+        // Close range (melee fighting)
+        else {
             this.vx = 0;
-            if(p1.state === 'attack' && Math.random() < 0.12 + (diff*0.35)) { 
+            
+            // High-tier AI reactive block
+            if(p1.state === 'attack' && Math.random() < 0.15 + (diff * 0.50)) { 
                 this.action('block', true); 
-                setTimeout(()=>this.action('block', false), 250 + Math.random()*200); 
+                setTimeout(()=>this.action('block', false), 180 + Math.random()*150); 
             } 
-            else if (p1.state === 'block' && Math.random() < 0.15 + (diff*0.25) && this.aiAttackCooldown <= 0) { 
+            // Anti-turtle mechanic: grab player if they are blocking
+            else if (p1.state === 'block' && Math.random() < 0.2 + (diff * 0.3) && this.aiAttackCooldown <= 0) { 
                 this.action('grab');
-                this.aiAttackCooldown = 40 + Math.random() * 40;
+                this.aiAttackCooldown = 30 + Math.random() * 30;
             }
+            // Execute random strike (punch, kick, or special)
             else if (this.state !== 'block' && this.aiAttackCooldown <= 0) {
-                if(Math.random() < 0.06 + (diff*0.08)) {
-                    const atk = Math.random() > 0.7 ? 'kick' : (Math.random() > 0.85 && this.ki >= 100 ? 'special' : 'punch');
+                if(Math.random() < 0.08 + (diff * 0.15)) {
+                    let atk = 'punch';
+                    const roll = Math.random();
+                    if (roll > 0.8 && this.ki >= 100) {
+                        atk = 'special';
+                    } else if (roll > 0.55) {
+                        atk = 'kick';
+                    }
                     this.action(atk);
-                    // Add attack cooldown to prevent spam stun locks
-                    this.aiAttackCooldown = 35 + Math.random() * 50;
+                    this.aiAttackCooldown = 25 + Math.random() * 35;
                 } else { 
                     this.state = 'idle'; 
                 }
@@ -3553,6 +3570,33 @@ function updateFight(dt) {
     if (fightState.p2HealthBar) fightState.p2HealthBar.update(fightState.p2.hp / fightState.p2.maxHp, dt);
     
     updateHUD();
+
+    // Sync with AIEngine State for AI Autoplay tracking
+    AIEngine.State.set('active', fightState.active);
+    if (fightState.p1) {
+        AIEngine.State.set('p1', {
+            x: fightState.p1.x,
+            y: fightState.p1.y,
+            state: fightState.p1.state,
+            hp: fightState.p1.hp,
+            maxHp: fightState.p1.maxHp,
+            ki: fightState.p1.ki,
+            maxKi: fightState.p1.maxKi,
+            dir: fightState.p1.dir
+        });
+    }
+    if (fightState.p2) {
+        AIEngine.State.set('p2', {
+            x: fightState.p2.x,
+            y: fightState.p2.y,
+            state: fightState.p2.state,
+            hp: fightState.p2.hp,
+            maxHp: fightState.p2.maxHp,
+            ki: fightState.p2.ki,
+            maxKi: fightState.p2.maxKi,
+            dir: fightState.p2.dir
+        });
+    }
 }
 
 function renderFight() {
@@ -3831,8 +3875,117 @@ function showAnnouncement(text) {
 
 // Start
 document.addEventListener('DOMContentLoaded', () => {
-    AIEngine.Input.init();
+    AIEngine.init({ seed: 'model-kombat' });
     AIEngine.Audio.init();
     showScreen('title');
     initTitleCanvas();
+});
+
+// =====================================================================
+// AI AUTOPLAY AGENT CONTROLLER REGISTRATION
+// =====================================================================
+AIEngine.Agent.registerController((state, input) => {
+    if (!state.active) return;
+    const p1 = state.p1;
+    const p2 = state.p2;
+    if (!p1 || !p2) return;
+    
+    const dist = Math.abs(p1.x - p2.x);
+    const p1Dir = p1.dir;
+    const rightKey = p1Dir === 1 ? 'd' : 'a';
+    const leftKey = p1Dir === 1 ? 'a' : 'd';
+    
+    // Dizzy execution
+    if (p2.state === 'dizzy') {
+        if (dist > 75) {
+            input.simulateKey(rightKey, 'keydown');
+            setTimeout(() => input.simulateKey(rightKey, 'keyup'), 100);
+        } else {
+            input.simulateKey(rightKey, 'keyup');
+            input.simulateKey('f', 'keydown');
+            setTimeout(() => input.simulateKey('f', 'keyup'), 50);
+        }
+        return;
+    }
+    
+    // Defense: block if opponent is attacking
+    if (p2.state === 'attack' && dist < 120 && Math.random() < 0.7) {
+        input.simulateKey('b', 'keydown');
+        setTimeout(() => input.simulateKey('b', 'keyup'), 200);
+        return;
+    }
+    
+    // Close range combo / offense
+    if (dist <= 75) {
+        input.simulateKey(rightKey, 'keyup'); // Stop moving
+        if (Math.random() < 0.15 && p1.ki >= 100) {
+            // Special Move
+            input.simulateKey('f', 'keydown');
+            setTimeout(() => input.simulateKey('f', 'keyup'), 50);
+        } else {
+            const move = Math.random() > 0.4 ? 'p' : 'k';
+            input.simulateKey(move, 'keydown');
+            setTimeout(() => input.simulateKey(move, 'keyup'), 50);
+        }
+    } 
+    // Approach / spacing / charging
+    else {
+        if (p1.ki < 60 && Math.random() < 0.3) {
+            input.simulateKey('c', 'keydown');
+            setTimeout(() => input.simulateKey('c', 'keyup'), 300);
+        } else {
+            input.simulateKey(rightKey, 'keydown');
+            setTimeout(() => input.simulateKey(rightKey, 'keyup'), 150);
+        }
+    }
+});
+
+// =====================================================================
+// INTEGRATION TESTS REGISTRATION
+// =====================================================================
+AIEngine.Test.defineTest('Fight Initialization & HUD Mappings', async (t) => {
+    showScreen('select');
+    selectedPreviewId = 'claude-haiku';
+    gameState.playerFighterId = selectedPreviewId;
+    gameState.currentOpponentIdx = 0;
+    showScreen('fight');
+    
+    t.expect(fightState.active).toBe(true, 'Fight state should be active');
+    t.expect(fightState.p1.data.id).toBe('claude-haiku', 'P1 should be Claude Haiku');
+    t.expect(fightState.p2.data.id).toBe('gemma-2b', 'P2 opponent should be Gemma 2B (first rung)');
+});
+
+AIEngine.Test.defineTest('Mixture of Experts Activation', async (t) => {
+    showScreen('select');
+    selectedPreviewId = 'o3';
+    gameState.playerFighterId = selectedPreviewId;
+    gameState.currentOpponentIdx = 0;
+    showScreen('fight');
+    
+    // Simulate charging Ki past threshold
+    fightState.p1.ki = 100;
+    await t.tick(5);
+    
+    t.expect(fightState.p1.isMoE).toBe(true, 'P1 should enter MoE transformation past threshold');
+});
+
+AIEngine.Test.defineTest('Autoplay Combative Execution', async (t) => {
+    showScreen('select');
+    selectedPreviewId = 'gpt-4o';
+    gameState.playerFighterId = selectedPreviewId;
+    gameState.currentOpponentIdx = 0;
+    showScreen('fight');
+    
+    // Start Autoplay Agent
+    AIEngine.Agent.start();
+    
+    // Run fight ticks and verify that some movements or attacks occur
+    const initialP1X = fightState.p1.x;
+    await t.tick(40);
+    
+    // Stop Agent
+    AIEngine.Agent.stop();
+    
+    const currentP1X = fightState.p1.x;
+    t.expect(currentP1X !== initialP1X).toBe(true, 'Autoplay should simulate movement inputs');
 });
